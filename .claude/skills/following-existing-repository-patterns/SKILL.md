@@ -34,6 +34,7 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Heavy dependencies | An optional extra named after the area (`agent-watch[pull-request-review]`); api code depends on a Protocol, and the one command that needs the real client imports it inside the command |
 | Library versions | None. `lib` is unversioned; never add a version file, release workflow, or version bump |
 | Workflows | Install `agent-watch` from main with `pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"`, never from a pull request's checkout, so PR code never runs with secrets or grades itself; then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
+| Assets | Images and other non-code files in `assets/<what they belong to>/`, e.g. `assets/robo-reviewer/` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |
 | Issues and PRs | `creating-github-issues`, `writing-pull-request-descriptions`, `splitting-large-pull-requests-into-stacks` |
