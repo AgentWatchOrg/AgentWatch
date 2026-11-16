@@ -1,10 +1,11 @@
 import re
 import urllib.error
+import urllib.parse
 
 from agent_watch.api.github_client import GitHubClient, JsonObject
 from agent_watch.api.pull_request_review.models import (
-    FINDING_MARKER_PATTERN, REVIEW_SUMMARY_MARKER, ChangedFile, ExistingReviewThread, PlannedReviewComment,
-    PullRequest, ReferencedIssue, ReviewFindingCategory)
+    FINDING_MARKER_PATTERN, REVIEW_SUMMARY_MARKER, ChangedFile, ExistingReviewThread, LabelEvent,
+    PlannedReviewComment, PullRequest, ReferencedIssue, ReviewFindingCategory, SubmittedReview)
 
 HUNK_HEADER_PATTERN: re.Pattern[str] = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<new_start>\d+)(?:,\d+)? @@")
 
@@ -85,6 +86,48 @@ class PullRequestClient:
             "POST", f"/repos/{self.repository}/issues/{pull_request_number}/comments", {"body": summary})
         created_comment_url: str = created_comment["html_url"]
         return created_comment_url
+
+    def load_label_names(self, pull_request_number: int) -> list[str]:
+        labels: list[JsonObject] = self.github_client.request_all_pages(
+            f"/repos/{self.repository}/issues/{pull_request_number}/labels")
+        return [label["name"] for label in labels]
+
+    def load_label_events(self, pull_request_number: int) -> list[LabelEvent]:
+        issue_events: list[JsonObject] = self.github_client.request_all_pages(
+            f"/repos/{self.repository}/issues/{pull_request_number}/events")
+        return [LabelEvent(label_name=event["label"]["name"], is_added=event["event"] == "labeled",
+                           actor_login=(event["actor"] or {}).get("login", "ghost"))
+                for event in issue_events if event["event"] in ("labeled", "unlabeled")]
+
+    def load_repository_permission(self, login: str) -> str:
+        try:
+            permission: JsonObject = self.github_client.request(
+                "GET", f"/repos/{self.repository}/collaborators/{login}/permission")
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return "none"
+            raise
+        permission_name: str = permission["permission"]
+        return permission_name
+
+    def load_reviews(self, pull_request_number: int) -> list[SubmittedReview]:
+        reviews: list[JsonObject] = self.github_client.request_all_pages(
+            f"/repos/{self.repository}/pulls/{pull_request_number}/reviews")
+        return [SubmittedReview(id=review["id"], state=review["state"], body=review["body"] or "")
+                for review in reviews]
+
+    def approve_pull_request(self, pull_request_number: int, body: str) -> None:
+        self.github_client.request("POST", f"/repos/{self.repository}/pulls/{pull_request_number}/reviews",
+                                   {"event": "APPROVE", "body": body})
+
+    def dismiss_review(self, pull_request_number: int, review_id: int, message: str) -> None:
+        self.github_client.request(
+            "PUT", f"/repos/{self.repository}/pulls/{pull_request_number}/reviews/{review_id}/dismissals",
+            {"event": "DISMISS", "message": message})
+
+    def remove_label(self, pull_request_number: int, label_name: str) -> None:
+        self.github_client.request(
+            "DELETE", f"/repos/{self.repository}/issues/{pull_request_number}/labels/{urllib.parse.quote(label_name)}")
 
 
 def parse_commentable_line_numbers(patch: str | None) -> frozenset[int]:

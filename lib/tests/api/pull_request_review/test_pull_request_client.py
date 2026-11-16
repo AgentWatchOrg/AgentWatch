@@ -7,7 +7,8 @@ from doubles.pull_request_review_test_doubles import ReviewFindingFactory
 
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.pull_request_review.models import (
-    REVIEW_SUMMARY_MARKER, CommentPlacement, ExistingReviewThread, PlannedReviewComment, PullRequest, ReferencedIssue)
+    REVIEW_SUMMARY_MARKER, CommentPlacement, ExistingReviewThread, LabelEvent, PlannedReviewComment, PullRequest,
+    ReferencedIssue, SubmittedReview)
 from agent_watch.api.pull_request_review.pull_request_client import (
     PullRequestClient, build_line_comment_payload, parse_commentable_line_numbers, parse_review_thread)
 
@@ -138,3 +139,46 @@ def test_find_issue_raises_on_other_http_errors(github_client: ScriptedGitHubCli
     with pytest.raises(urllib.error.HTTPError):
         pull_request_client.find_issue(12)
 
+
+
+def test_load_label_names_and_events(github_client: ScriptedGitHubClient,
+                                     pull_request_client: PullRequestClient) -> None:
+    github_client.rest_responses = [
+        [{"name": "p1"}, {"name": "bypass-merge-requirements"}],
+        [{"event": "labeled", "label": {"name": "p1"}, "actor": {"login": "joshuajipp"}},
+         {"event": "closed", "actor": {"login": "joshuajipp"}},
+         {"event": "unlabeled", "label": {"name": "p1"}, "actor": None}],
+    ]
+
+    assert pull_request_client.load_label_names(7) == ["p1", "bypass-merge-requirements"]
+    assert pull_request_client.load_label_events(7) == [LabelEvent("p1", True, "joshuajipp"),
+                                                       LabelEvent("p1", False, "ghost")]
+    assert github_client.rest_calls[1][1] == "/repos/AgentWatchOrg/AgentWatch/issues/7/events?per_page=100&page=1"
+
+
+@pytest.mark.parametrize(("permission_response", "expected_permission"), [
+    ({"permission": "admin"}, "admin"),
+    (urllib.error.HTTPError("https://api.github.com", 404, "Not Found", Message(), None), "none"),
+], ids=["collaborator", "not a collaborator"])
+def test_load_repository_permission(github_client: ScriptedGitHubClient, pull_request_client: PullRequestClient,
+                                    permission_response: object, expected_permission: str) -> None:
+    github_client.rest_responses = [permission_response]
+
+    assert pull_request_client.load_repository_permission("joshuajipp") == expected_permission
+    assert github_client.rest_calls[0][1] == "/repos/AgentWatchOrg/AgentWatch/collaborators/joshuajipp/permission"
+
+
+def test_review_and_label_writes(github_client: ScriptedGitHubClient, pull_request_client: PullRequestClient) -> None:
+    github_client.rest_responses = [[{"id": 9, "state": "APPROVED", "body": None}]]
+
+    assert pull_request_client.load_reviews(7) == [SubmittedReview(id=9, state="APPROVED", body="")]
+    pull_request_client.approve_pull_request(7, "approved")
+    pull_request_client.dismiss_review(7, 9, "label removed")
+    pull_request_client.remove_label(7, "bypass merge")
+
+    assert github_client.rest_calls[1:] == [
+        ("POST", "/repos/AgentWatchOrg/AgentWatch/pulls/7/reviews", {"event": "APPROVE", "body": "approved"}),
+        ("PUT", "/repos/AgentWatchOrg/AgentWatch/pulls/7/reviews/9/dismissals",
+         {"event": "DISMISS", "message": "label removed"}),
+        ("DELETE", "/repos/AgentWatchOrg/AgentWatch/issues/7/labels/bypass%20merge", None),
+    ]
