@@ -65,7 +65,7 @@ class ProjectBoardClient:
         )
 
     def load_items(self, board: ProjectBoard) -> list[ProjectItem]:
-        item_nodes: list[JsonObject] = self.load_all_pages(
+        item_nodes: list[JsonObject] = self.github_client.run_paginated_graphql(
             PROJECT_ITEMS_QUERY, ["node", "items"], projectId=board.id)
         return [parse_project_item(node) for node in item_nodes if not node["isArchived"]]
 
@@ -73,21 +73,9 @@ class ProjectBoardClient:
         repository_owner: str
         repository_name: str
         repository_owner, repository_name = self.repository.split("/")
-        issue_nodes: list[JsonObject] = self.load_all_pages(
+        issue_nodes: list[JsonObject] = self.github_client.run_paginated_graphql(
             OPEN_ISSUES_QUERY, ["repository", "issues"], owner=repository_owner, name=repository_name)
         return [OpenIssue(id=node["id"], number=node["number"], title=node["title"]) for node in issue_nodes]
-
-    def load_all_pages(self, query: str, connection_path: list[str], **variables: object) -> list[JsonObject]:
-        nodes: list[JsonObject] = []
-        page_cursor: str | None = None
-        while True:
-            connection: JsonObject = self.github_client.run_graphql(query, after=page_cursor, **variables)
-            for key in connection_path:
-                connection = connection[key]
-            nodes += connection["nodes"]
-            if not connection["pageInfo"]["hasNextPage"]:
-                return nodes
-            page_cursor = connection["pageInfo"]["endCursor"]
 
     def set_item_week(self, board: ProjectBoard, item_id: str, week: SprintWeek) -> None:
         self.github_client.run_graphql(SET_FIELD_VALUE_MUTATION, projectId=board.id, itemId=item_id,

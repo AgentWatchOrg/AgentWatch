@@ -28,3 +28,26 @@ class GitHubClient:
             raise GitHubApiError(str(response["errors"]))
         data: JsonObject = response["data"]
         return data
+
+    def run_paginated_graphql(self, query: str, connection_path: list[str], **variables: object) -> list[JsonObject]:
+        nodes: list[JsonObject] = []
+        page_cursor: str | None = None
+        while True:
+            connection: JsonObject = self.run_graphql(query, after=page_cursor, **variables)
+            for key in connection_path:
+                connection = connection[key]
+            nodes += connection["nodes"]
+            if not connection["pageInfo"]["hasNextPage"]:
+                return nodes
+            page_cursor = connection["pageInfo"]["endCursor"]
+
+    def request_all_pages(self, path: str, page_size: int = 100) -> list[Any]:
+        separator: str = "&" if "?" in path else "?"
+        items: list[Any] = []
+        page_number: int = 1
+        while True:
+            page_items: list[Any] = self.request("GET", f"{path}{separator}per_page={page_size}&page={page_number}")
+            items += page_items
+            if len(page_items) < page_size:
+                return items
+            page_number += 1
