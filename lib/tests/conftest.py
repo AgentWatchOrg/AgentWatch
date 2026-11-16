@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from doubles.github_test_doubles import ScriptedGitHubClient
 from doubles.project_board_test_doubles import (
     FakeProjectBoardClient, FakeProjectBoardClientFactory, ProjectItemFactory)
 
@@ -50,3 +51,8 @@ def make_fake_client(project_board: ProjectBoard) -> FakeProjectBoardClientFacto
                           collaborator_logins: set[str] | None = None) -> FakeProjectBoardClient:
         return FakeProjectBoardClient(project_board, items or [], open_issues or [], collaborator_logins or set())
     return build_fake_client
+
+
+@pytest.fixture
+def github_client() -> ScriptedGitHubClient:
+    return ScriptedGitHubClient()
