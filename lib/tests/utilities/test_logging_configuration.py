@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from agent_watch.logging_configuration import PACKAGE_LOGGER_NAME, configure_logging
+from agent_watch.utilities.logging_configuration import PACKAGE_LOGGER_NAME, configure_logging
 
 
 def test_configure_logging_sets_the_level_and_one_handler() -> None:

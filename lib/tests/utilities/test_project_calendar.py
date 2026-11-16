@@ -3,7 +3,7 @@ from typing import Self
 
 import pytest
 
-from agent_watch.api import project_calendar
+from agent_watch.utilities import project_calendar
 
 SUNDAY_EVENING_IN_CALGARY_AS_UTC: datetime = datetime(2026, 11, 16, 3, 0, tzinfo=timezone.utc)
 
