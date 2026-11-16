@@ -20,22 +20,11 @@ Update documentation in the same PR as the change when it adds or changes:
 Skip documentation for refactors, renames, typo fixes, and anything a reader would not need to run, integrate with, or understand the system.
 
 ## Where
-One folder per area, matching the issue area labels. Create a folder only when its first page is written; the navigation builds itself from the folders.
+1. Look at the current tree: `ls -R documentation/`.
+2. Add to an existing page if the topic is already covered; otherwise add a page to the section it belongs in.
+3. Create a new section folder only when the content fits none of the existing ones. Name it for the part of the system it covers.
 
-| Folder | Content |
-|---|---|
-| `architecture.md` | Components and data flow |
-| `sensor/` | Tetragon/auditd setup, tracing policies, captured events |
-| `forwarder/` | Filtering, attribution, redaction, delivery |
-| `backend/` | API reference, event schema, validation |
-| `detection/` | Rules, correlation, detection record format |
-| `splunk/` | HEC setup, indexes, sourcetypes, searches, dashboards |
-| `agent/` | Monitored agents, session attribution |
-| `infrastructure/` | Environments, install, deployment, CI/CD |
-| `evaluation/` | Test harness, scenarios, metrics, results, demo replay |
-| `decisions/` | One page per decision: `NNN-short-title.md` |
-
-A folder's landing page is `index.md`. Update an existing page before adding a new one.
+The navigation builds itself from the folders. A folder's landing page is `index.md`.
 
 ## How to write
 Concise. Too sparse beats too long.
@@ -46,7 +35,7 @@ Concise. Too sparse beats too long.
 - Mermaid diagrams only when a flow is hard to follow in text.
 - No AI attribution.
 
-Decision pages use exactly:
+When recording a decision (for example a spike's outcome), use exactly:
 ```markdown
 # NNN: <decision>
 
