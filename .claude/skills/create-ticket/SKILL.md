@@ -28,10 +28,30 @@ Pick one, don't ask unless there's no signal at all:
 - `p3` nice to have
 - `p4` someday
 
+## Labels
+Always exactly one type label, plus 1-2 area labels that fit. Use only these.
+
+Type:
+- `feature` new functionality
+- `bug` something broken
+- `spike` time-boxed research or a decision
+- `test` validation runs, test records
+- `documentation` docs, reports, deployment guide
+
+Area:
+- `sensor` eBPF/Tetragon, auditd
+- `forwarder` host-side filtering, attribution, delivery
+- `backend` ingestion API, event schema, validation
+- `detection` rules, correlation, detection records
+- `splunk` HEC export, searches, dashboards, observability
+- `agent` Claude Code / monitored agents, session attribution
+- `infra` VMs, deployment, CI/CD
+- `eval` evaluation harness, scenarios, metrics, demo replay
+
 ## Create it
 ```bash
-.claude/skills/create-ticket/create.sh "<title>" <p0-p4> <<'EOF'
+.claude/skills/create-ticket/create.sh "<title>" <p0-p4> <type,area[,area]> <<'EOF'
 <body>
 EOF
 ```
-This creates the issue with the priority label, adds it to the board as Backlog with Priority set, and prints the URL. Reply with just the URL.
+This creates the issue with its priority and labels, adds it to the board as Backlog with Priority set, and prints the URL. Reply with just the URL.
