@@ -26,7 +26,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo "${{ github.repository }}" --pattern "agent_watch_cli-*.whl" --dir agent-watch-release
+          gh release download --repo "${{ github.repository }}" --pattern "agent_watch-*.whl" --dir agent-watch-release
           pip install agent-watch-release/*.whl
       - name: Add new issues to backlog and match sprint weeks to statuses
         env:

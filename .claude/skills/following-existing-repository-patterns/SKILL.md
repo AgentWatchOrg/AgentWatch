@@ -25,10 +25,11 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 ## Current patterns
 | Thing | Pattern |
 |---|---|
-| Tooling and automation | A command group in the `agent-watch` Click CLI (`cli/src/agent_watch_cli/<group>/`), never a standalone script; typed, passes `mypy --strict` |
-| Project board access | `ProjectBoardClient` in `cli/src/agent_watch_cli/project_board/project_board_client.py`; never a second GitHub client |
+| Python code | `lib/src/agent_watch/api/<area>/` for logic, `lib/src/agent_watch/cli/` for Click commands; see `structuring-library-code` |
+| GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
-| CLI releases | Bump `cli/VERSION` on main; `release-agent-watch-cli.yml` publishes a GitHub release with the wheel |
+| Tests | pytest in `lib/tests/`, one module per source module; required check `run_type_checks_and_unit_tests` |
+| Library releases | Bump `lib/VERSION` on main; `release-agent-watch-library.yml` tests and publishes a GitHub release with the wheel |
 | Workflows | Install the latest `agent-watch` release, then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |

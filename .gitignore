@@ -1,4 +1,4 @@
 built-documentation-site/
-built-cli-packages/
+built-library-packages/
 *.egg-info/
 __pycache__/

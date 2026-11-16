@@ -4,9 +4,10 @@ from zoneinfo import ZoneInfo
 
 import click
 
-from agent_watch_cli.project_board.project_board_client import ProjectBoardClient
-from agent_watch_cli.project_board.roll_over_sprint import roll_over_sprint
-from agent_watch_cli.project_board.synchronize_statuses_with_sprint_weeks import synchronize_statuses_with_sprint_weeks
+from agent_watch.api.github_client import GitHubClient
+from agent_watch.api.project_board.project_board_client import ProjectBoardClient
+from agent_watch.api.project_board.roll_over_sprint import SprintRolloverResult, roll_over_sprint
+from agent_watch.api.project_board.synchronize_statuses import BoardChange, synchronize_statuses
 
 PROJECT_TIME_ZONE: ZoneInfo = ZoneInfo("America/Edmonton")
 
@@ -32,23 +33,39 @@ class ProjectBoardCommandSettings:
 def project_board(context: click.Context, github_token: str, project_owner: str, project_number: int,
                   repository: str, simulated_today: datetime | None, is_dry_run: bool) -> None:
     context.obj = ProjectBoardCommandSettings(
-        client=ProjectBoardClient(github_token, project_owner, project_number, repository),
+        client=ProjectBoardClient(GitHubClient(github_token), project_owner, project_number, repository),
         today=simulated_today.date() if simulated_today else datetime.now(PROJECT_TIME_ZONE).date(),
         is_dry_run=is_dry_run,
     )
 
 
-@project_board.command("synchronize-statuses", help="Add new issues to Backlog and match each card's sprint week to its status.")
+@project_board.command("synchronize-statuses",
+                       help="Add new issues to Backlog and match each card's sprint week to its status.")
 @click.pass_obj
 def synchronize_statuses_command(settings: ProjectBoardCommandSettings) -> None:
-    synchronize_statuses_with_sprint_weeks(settings.client, settings.today, settings.is_dry_run)
+    changes: list[BoardChange] = synchronize_statuses(settings.client, settings.today, settings.is_dry_run)
+    for change in changes:
+        sprint_week_suffix: str = f" ({change.sprint_week.title})" if change.sprint_week else ""
+        click.echo(f"{change.kind}: {change.target_title}{sprint_week_suffix}")
+    click.echo(f"{len(changes)} change(s){' planned (dry run)' if settings.is_dry_run else ' applied'}")
 
 
-@project_board.command("roll-over-sprint", help="Move unfinished cards into the current sprint, add future weeks, post the Sprint Log summary.")
+@project_board.command("roll-over-sprint",
+                       help="Move unfinished cards into the current sprint, add future weeks, post the Sprint Log summary.")
 @click.option("--minimum-future-weeks", envvar="MINIMUM_FUTURE_WEEKS", default=4, show_default=True)
 @click.option("--post-summary/--no-post-summary", "should_post_summary", envvar="SHOULD_POST_SUMMARY",
               default=True, show_default=True)
 @click.pass_obj
 def roll_over_sprint_command(settings: ProjectBoardCommandSettings, minimum_future_weeks: int,
                              should_post_summary: bool) -> None:
-    roll_over_sprint(settings.client, settings.today, minimum_future_weeks, should_post_summary, settings.is_dry_run)
+    result: SprintRolloverResult = roll_over_sprint(
+        settings.client, settings.today, minimum_future_weeks, should_post_summary, settings.is_dry_run)
+    click.echo(f"Target week: {result.plan.target_week.title}{' (dry run)' if settings.is_dry_run else ''}")
+    for item in result.plan.carried_over_items:
+        click.echo(f"Carry over: {item.title} ({item.week_title} -> {result.plan.target_week.title})")
+    for new_week in result.plan.new_weeks:
+        click.echo(f"Add week: {new_week.title}")
+    if result.summary:
+        click.echo(f"\n{result.summary}")
+    if result.sprint_log_issue_number:
+        click.echo(f"\nPosted on {settings.client.repository}#{result.sprint_log_issue_number}")
