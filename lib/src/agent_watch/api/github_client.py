@@ -1,10 +1,13 @@
 import json
+import logging
 import urllib.request
 from typing import Any
 
 JsonObject = dict[str, Any]
 
 GITHUB_API_URL: str = "https://api.github.com"
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class GitHubApiError(Exception):
@@ -16,6 +19,7 @@ class GitHubClient:
         self.github_token: str = github_token
 
     def request(self, method: str, path: str, body: JsonObject | None = None) -> Any:
+        logger.debug("%s %s", method, path)
         http_request: urllib.request.Request = urllib.request.Request(
             f"{GITHUB_API_URL}{path}", method=method, data=json.dumps(body).encode() if body else None,
             headers={"Authorization": f"Bearer {self.github_token}", "Accept": "application/vnd.github+json"})

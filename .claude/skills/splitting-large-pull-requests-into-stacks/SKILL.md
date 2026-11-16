@@ -39,10 +39,14 @@ Each PR's base is the branch below it, so reviewers see only that PR's diff.
 ## PR descriptions
 Follow the `writing-pull-request-descriptions` skill, with two changes:
 - Only the top PR says `Closes #N`. The others say `Part of #N`, so the ticket stays open until the last piece merges.
-- Add one line under it:
+- Under it, list the whole stack, bottom to top, and mark this PR:
 ```
-Stack 2/3, on top of #41
+**Stack:**
+1. #40 Add HEC event schema
+2. #41 Add HEC export client ← this PR
+3. #42 Export detections to Splunk
 ```
+Every PR in the stack carries the same list. When a PR is added, merged, or closed, edit the description of every open PR in the stack so the list stays current (merged PRs stay listed, marked `merged`).
 
 ## Merging
 Merge bottom-up. After the bottom PR merges (squash), rebase the next branch onto main and retarget it:

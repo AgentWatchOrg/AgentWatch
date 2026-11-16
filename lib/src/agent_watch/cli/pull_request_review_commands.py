@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import click
@@ -8,6 +9,8 @@ from agent_watch.api.pull_request_review.models import (
     DEFAULT_REVIEW_MODEL, MAXIMUM_AGENT_TURNS, PlannedReviewComment, PullRequestReviewResult, TicketReferenceCheck)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
 from agent_watch.api.pull_request_review.review_pull_request import review_pull_request
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 @click.group("pull-request-review", help="Review pull requests with a Claude agent.")
@@ -40,15 +43,15 @@ def review_command(github_token: str, repository: str, pull_request_number: int,
         ClaudeReviewAgentClient(model, maximum_agent_turns, repository_directory.resolve()),
         pull_request_number, is_dry_run)
     if result.plan is None or result.agent_run is None:
-        click.echo(f"Skipped {repository}#{pull_request_number}: draft pull request")
+        logger.info(f"Skipped {repository}#{pull_request_number}: draft pull request")
         return
     for comment in result.plan.comments:
-        click.echo(format_planned_comment(comment))
-    click.echo(f"{len(result.plan.comments)} new finding(s), {len(result.plan.skipped_duplicate_findings)} "
+        logger.info(format_planned_comment(comment))
+    logger.info(f"{len(result.plan.comments)} new finding(s), {len(result.plan.skipped_duplicate_findings)} "
                f"already raised, {result.agent_run.turn_count} agent turn(s)"
                f"{' (dry run)' if is_dry_run else ''}")
     if result.summary_comment_url:
-        click.echo(f"Summary: {result.summary_comment_url}")
+        logger.info(f"Summary: {result.summary_comment_url}")
 
 @pull_request_review.command("check-ticket-reference",
                              help="Fail unless the description has 'Closes #N' or 'Part of #N' for an existing issue.")
@@ -59,14 +62,14 @@ def check_ticket_reference_command(github_token: str, repository: str, pull_requ
     result: TicketReferenceCheck = check_ticket_reference(
         PullRequestClient(GitHubClient(github_token), repository), pull_request_number)
     for missing_issue_number in result.missing_issue_numbers:
-        click.echo(f"#{missing_issue_number} does not exist in {repository}.")
+        logger.error(f"#{missing_issue_number} does not exist in {repository}.")
     for pull_request_reference in result.pull_request_numbers_referenced_as_tickets:
-        click.echo(f"#{pull_request_reference} is a pull request, not a ticket.")
+        logger.error(f"#{pull_request_reference} is a pull request, not a ticket.")
     if not result.referenced_issue_numbers:
-        click.echo("No ticket referenced. Add 'Closes #N' (or 'Part of #N' for a stacked PR) to the description.")
+        logger.error("No ticket referenced. Add 'Closes #N' (or 'Part of #N' for a stacked PR) to the description.")
     if not result.is_passing:
         raise SystemExit(1)
-    click.echo(f"References {', '.join(f'#{number}' for number in result.referenced_issue_numbers)}.")
+    logger.info(f"References {', '.join(f'#{number}' for number in result.referenced_issue_numbers)}.")
 
 
 def format_planned_comment(comment: PlannedReviewComment) -> str:

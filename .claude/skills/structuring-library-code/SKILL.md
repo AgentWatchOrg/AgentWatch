@@ -30,13 +30,13 @@ lib/tests/                mirrors src/agent_watch: tests/api/<area>/test_<module
 ## api
 Callable from the CLI and the REST API with no changes.
 - Takes plain arguments and clients as parameters. Returns models.
-- Never prints, reads environment variables, parses arguments, exits, or imports `click`.
+- Never prints, reads environment variables, parses arguments, exits, or imports `click`. Diagnostics go through the module logger.
 - Raises a specific exception from the area's `models.py` on failure.
 - Split each operation into a pure `plan_*` function (inputs → planned changes, no I/O), an `apply_*` function (performs the plan through a client), and one function that loads, plans, and applies unless it's a dry run.
 - Clients are classes that take their dependencies in `__init__`, so tests can pass fakes.
 
 ## cli
-- Parses options (each with an `envvar`), builds clients, calls one api function, prints the result.
+- Parses options (each with an `envvar`), builds clients, calls one api function, logs the result.
 - No business logic. If a command needs more than formatting, the logic belongs in `api`.
 
 ## rest_api
@@ -45,6 +45,12 @@ Callable from the CLI and the REST API with no changes.
 - Build api clients in FastAPI dependencies and read environment variables in one settings module, so tests can override them.
 - No business logic in routers; same rule as `cli`.
 - Tests use `fastapi.testclient.TestClient` with `dependency_overrides` and `monkeypatch` on the api function.
+
+## Logging
+- Every module that reports anything declares `logger: logging.Logger = logging.getLogger(__name__)` with its globals.
+- Never `print`, `click.echo`, or `click.secho`; `tests/test_no_printing.py` fails if any appear under `src/`.
+- `agent_watch.logging_configuration.configure_logging` is the only place handlers and format are set. The CLI calls it from `--log-level` (env `AGENT_WATCH_LOG_LEVEL`); the REST API calls it in `create_application`.
+- Levels: `debug` for request-level detail, `info` for results a person running the command wants, `warning` for recoverable problems, `error` for failures before exiting non-zero.
 
 ## File layout
 Every file in this order:
