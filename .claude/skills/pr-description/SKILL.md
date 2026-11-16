@@ -7,6 +7,9 @@ description: Use whenever opening or editing a pull request for AgentWatch. Writ
 
 As short as possible. Too sparse is fine; too long is not.
 
+## Size
+Over 500 changed lines: stop and split it using the `stacked-prs` skill.
+
 ## Ticket link (required)
 Every PR closes a ticket. Find the number from the branch name, commits, or the conversation. If none exists, create one with the `create-ticket` skill first. Never open a PR without `Closes #N`.
 
