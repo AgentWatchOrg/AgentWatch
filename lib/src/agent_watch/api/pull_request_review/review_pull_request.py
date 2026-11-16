@@ -85,7 +85,7 @@ def plan_pull_request_review(pull_request: PullRequest, findings: list[ReviewFin
 
 def build_review_summary(pull_request: PullRequest, plan: PullRequestReviewPlan, agent_run: ReviewAgentRun) -> str:
     severity_counts: Counter[ReviewSeverity] = Counter(comment.finding.severity for comment in plan.comments)
-    summary_lines: list[str] = [REVIEW_SUMMARY_MARKER, "## Claude review", "",
+    summary_lines: list[str] = [REVIEW_SUMMARY_MARKER, "## RoboReviewer", "",
                                 f"Reviewed `{pull_request.head_sha[:7]}` in {agent_run.turn_count} agent turns."]
     if not plan.comments:
         summary_lines += ["", "No new findings."]
