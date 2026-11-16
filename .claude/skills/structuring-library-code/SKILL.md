@@ -1,11 +1,11 @@
 ---
 name: structuring-library-code
-description: Use whenever writing or changing Python in AgentWatch. Core logic goes in lib/src/agent_watch/api so a CLI or a Django REST API can call it; the CLI is a thin layer; every file is ordered imports, globals, classes, functions; every function has a pytest unit test.
+description: Use whenever writing or changing Python in AgentWatch. Core logic goes in lib/src/agent_watch/api so the CLI and the FastAPI web server can call it; both are thin layers; every file is ordered imports, globals, classes, functions; every function has a pytest unit test.
 ---
 
 # Structuring library code
 
-All Python lives in the `agent-watch` package under `lib/`.
+Core logic lives in the `agent-watch` package under `lib/`. The FastAPI server in `web-server/` is a separate, unversioned package that depends on it.
 
 ```
 lib/src/agent_watch/
@@ -24,7 +24,7 @@ lib/tests/                mirrors src/agent_watch: tests/api/<area>/test_<module
 ```
 
 ## api
-Callable from the CLI today and a Django REST API later, with no changes.
+Callable from the CLI and the web server with no changes.
 - Takes plain arguments and clients as parameters. Returns models.
 - Never prints, reads environment variables, parses arguments, exits, or imports `click`.
 - Raises a specific exception from the area's `models.py` on failure.
@@ -34,6 +34,18 @@ Callable from the CLI today and a Django REST API later, with no changes.
 ## cli
 - Parses options (each with an `envvar`), builds clients, calls one api function, prints the result.
 - No business logic. If a command needs more than formatting, the logic belongs in `api`.
+
+## web-server
+```
+web-server/src/agent_watch_web_server/
+  application.py          create_application(); includes every router
+  dependencies.py         FastAPI dependencies that build api clients from settings
+  web_server_settings.py  environment variables, read in one place
+  routers/<area>_router.py
+```
+- Routes call one api function and return its models; FastAPI serializes dataclasses.
+- No business logic in routers; same rule as `cli`.
+- Tests use `fastapi.testclient.TestClient` with `dependency_overrides` and `monkeypatch` on the api function.
 
 ## File layout
 Every file in this order:

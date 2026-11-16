@@ -1,15 +1,13 @@
 from dataclasses import dataclass
 from datetime import date, datetime
-from zoneinfo import ZoneInfo
 
 import click
 
 from agent_watch.api.github_client import GitHubClient
+from agent_watch.api.project_calendar import today_in_project_time_zone
 from agent_watch.api.project_board.project_board_client import ProjectBoardClient
 from agent_watch.api.project_board.roll_over_sprint import SprintRolloverResult, roll_over_sprint
 from agent_watch.api.project_board.synchronize_statuses import BoardChange, synchronize_statuses
-
-PROJECT_TIME_ZONE: ZoneInfo = ZoneInfo("America/Edmonton")
 
 
 @dataclass(frozen=True)
@@ -34,7 +32,7 @@ def project_board(context: click.Context, github_token: str, project_owner: str,
                   repository: str, simulated_today: datetime | None, is_dry_run: bool) -> None:
     context.obj = ProjectBoardCommandSettings(
         client=ProjectBoardClient(GitHubClient(github_token), project_owner, project_number, repository),
-        today=simulated_today.date() if simulated_today else datetime.now(PROJECT_TIME_ZONE).date(),
+        today=simulated_today.date() if simulated_today else today_in_project_time_zone(),
         is_dry_run=is_dry_run,
     )
 

@@ -1,0 +1,15 @@
+from fastapi import FastAPI
+
+from agent_watch_web_server.routers.health_router import health_router
+from agent_watch_web_server.routers.project_board_router import project_board_router
+
+
+def create_application() -> FastAPI:
+    created_application: FastAPI = FastAPI(
+        title="AgentWatch API", description="Read-only views of AgentWatch project data.", version="0")
+    created_application.include_router(health_router)
+    created_application.include_router(project_board_router)
+    return created_application
+
+
+application: FastAPI = create_application()

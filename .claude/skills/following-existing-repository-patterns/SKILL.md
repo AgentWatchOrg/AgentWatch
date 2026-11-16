@@ -26,6 +26,8 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Thing | Pattern |
 |---|---|
 | Python code | `lib/src/agent_watch/api/<area>/` for logic, `lib/src/agent_watch/cli/` for Click commands; see `structuring-library-code` |
+| REST API | FastAPI in `web-server/src/agent_watch_web_server/`, one router per area calling `agent_watch.api`; Swagger at `/docs` |
+| Infrastructure | CloudFormation in `infrastructure/<service>/`; deploys through SSM from GitHub Actions with an OIDC role, no SSH keys or AWS secrets in GitHub |
 | GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
 | Tests | pytest in `lib/tests/`, folders mirroring `src/agent_watch/`; shared fakes in `lib/tests/doubles/`; required check `run_type_checks_and_unit_tests` |
