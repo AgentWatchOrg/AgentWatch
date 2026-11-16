@@ -4,6 +4,7 @@ from datetime import date, datetime
 import click
 
 from agent_watch.api.github_client import GitHubClient
+from agent_watch.api.project_board.board_load_report import build_report
 from agent_watch.api.project_calendar import today_in_project_time_zone
 from agent_watch.api.project_board.project_board_client import ProjectBoardClient
 from agent_watch.api.project_board.roll_over_sprint import SprintRolloverResult, roll_over_sprint
@@ -67,3 +68,21 @@ def roll_over_sprint_command(settings: ProjectBoardCommandSettings, minimum_futu
         click.echo(f"\n{result.summary}")
     if result.sprint_log_issue_number:
         click.echo(f"\nPosted on {settings.client.repository}#{result.sprint_log_issue_number}")
+
+
+@project_board.command("board-load", help="Show how many cards each person has.")
+@click.pass_obj
+def board_load_command(settings: ProjectBoardCommandSettings) -> None:
+    board = settings.client.load_board()
+    items = settings.client.load_items(board)
+    open_items = []
+    for item in items:
+        if item.status != "Done" and item.status != "Backlog":
+            open_items.append(item)
+    counts = {}
+    for item in open_items:
+        for login in item.assignee_logins:
+            counts[login] = counts.get(login, 0) + 1
+    busiest = sorted(counts.items(), key=lambda pair: pair[1])[0]
+    click.echo(build_report(open_items))
+    click.echo(f"Busiest: {busiest[0]} ({busiest[1]} cards)")
