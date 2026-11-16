@@ -2,7 +2,7 @@ name: Check pull request ticket reference
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -21,4 +21,6 @@ jobs:
       - env:
           GITHUB_TOKEN: ${{ github.token }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-        run: agent-watch pull-request-review check-ticket-reference
+        run: |
+          agent-watch pull-request-review check-merge-requirements-bypass \
+            || agent-watch pull-request-review check-ticket-reference

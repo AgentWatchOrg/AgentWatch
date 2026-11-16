@@ -2,8 +2,14 @@ name: Test agent-watch library
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 
 jobs:
   run_type_checks_and_unit_tests:
@@ -13,9 +19,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e "lib[development]"
-      - working-directory: lib
+      - name: Skip when a repository admin added the bypass-merge-requirements label
+        id: check_merge_requirements_bypass
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python -m venv "$RUNNER_TEMP/agent-watch-from-main"
+          "$RUNNER_TEMP/agent-watch-from-main/bin/pip" install --quiet "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
+          if "$RUNNER_TEMP/agent-watch-from-main/bin/agent-watch" pull-request-review check-merge-requirements-bypass; then
+            echo "is_bypassed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.check_merge_requirements_bypass.outputs.is_bypassed != 'true'
+        run: pip install -e "lib[development]"
+      - if: steps.check_merge_requirements_bypass.outputs.is_bypassed != 'true'
+        working-directory: lib
         run: mypy src tests
-      - working-directory: lib
+      - if: steps.check_merge_requirements_bypass.outputs.is_bypassed != 'true'
+        working-directory: lib
         run: pytest
-      - run: python -m build --outdir built-library-packages lib
+      - if: steps.check_merge_requirements_bypass.outputs.is_bypassed != 'true'
+        run: python -m build --outdir built-library-packages lib
