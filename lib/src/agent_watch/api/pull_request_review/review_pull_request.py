@@ -4,10 +4,9 @@ from collections import Counter
 
 from agent_watch.api.pull_request_review.models import (
     FINDING_MARKER_TEMPLATE, REVIEW_SUMMARY_MARKER, ChangedFile, CommentPlacement, ExistingReviewThread,
-    PlannedReviewComment, PullRequest, PullRequestReviewPlan, PullRequestReviewResult, ReviewAgentRun, ReviewFinding,
-    ReviewSeverity)
+    PlannedReviewComment, PullRequest, PullRequestReviewPlan, PullRequestReviewResult, ReviewAgent, ReviewAgentRun,
+    ReviewFinding, ReviewSeverity)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
-from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
 
 NEARBY_THREAD_LINE_DISTANCE: int = 3
 SEVERITY_BADGES: dict[ReviewSeverity, str] = {
@@ -114,14 +113,14 @@ def apply_pull_request_review(client: PullRequestClient, pull_request: PullReque
     return client.create_or_update_review_summary(pull_request.number, summary)
 
 
-def review_pull_request(pull_request_client: PullRequestClient, review_agent_client: ClaudeReviewAgentClient,
+def review_pull_request(pull_request_client: PullRequestClient, review_agent: ReviewAgent,
                         pull_request_number: int, is_dry_run: bool) -> PullRequestReviewResult:
     pull_request: PullRequest = pull_request_client.load_pull_request(pull_request_number)
     if pull_request.is_draft:
         return PullRequestReviewResult(pull_request=pull_request, agent_run=None, plan=None, summary=None,
                                        summary_comment_url=None)
     existing_threads: list[ExistingReviewThread] = pull_request_client.load_review_threads(pull_request_number)
-    agent_run: ReviewAgentRun = review_agent_client.find_review_findings(pull_request, existing_threads)
+    agent_run: ReviewAgentRun = review_agent.find_review_findings(pull_request, existing_threads)
     plan: PullRequestReviewPlan = plan_pull_request_review(pull_request, agent_run.findings, existing_threads)
     summary: str = build_review_summary(pull_request, plan, agent_run)
     summary_comment_url: str | None = None if is_dry_run else apply_pull_request_review(

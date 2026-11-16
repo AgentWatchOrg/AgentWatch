@@ -8,9 +8,14 @@ Source: `lib/`. Not versioned: everything installs whatever is on `main`.
 | `agent_watch.cli` | `agent-watch` Click commands that call `api` and print results. |
 
 ## Install
-From main:
+Into its own environment, from main:
 ```bash
-pip install "git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
+python3.12 -m venv ~/.venvs/agent-watch
+~/.venvs/agent-watch/bin/pip install "git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
+```
+The `pull-request-review review` command also needs the Claude Agent SDK:
+```bash
+~/.venvs/agent-watch/bin/pip install "agent-watch[pull-request-review] @ git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
 ```
 For development:
 ```bash

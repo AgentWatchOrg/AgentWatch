@@ -1,6 +1,6 @@
 import pytest
 from doubles.pull_request_review_test_doubles import (
-    ExistingReviewThreadFactory, FakePullRequestClient, FakeReviewAgentClient, ReviewFindingFactory)
+    ExistingReviewThreadFactory, FakePullRequestClient, FakeReviewAgent, ReviewFindingFactory)
 
 from agent_watch.api.pull_request_review.models import (
     REVIEW_SUMMARY_MARKER, ChangedFile, CommentPlacement, ExistingReviewThread, PullRequest, PullRequestReviewPlan,
@@ -147,7 +147,7 @@ def test_review_pull_request_posts_only_outside_dry_run(make_finding: ReviewFind
                                                         pull_request: PullRequest, is_dry_run: bool,
                                                         expected_calls: list[tuple[str, ...]]) -> None:
     client: FakePullRequestClient = FakePullRequestClient(pull_request, [])
-    agent_client: FakeReviewAgentClient = FakeReviewAgentClient(
+    agent_client: FakeReviewAgent = FakeReviewAgent(
         ReviewAgentRun(findings=[make_finding()], turn_count=12, total_cost_usd=None))
 
     result: PullRequestReviewResult = review_pull_request(client, agent_client, 7, is_dry_run)
@@ -159,7 +159,7 @@ def test_review_pull_request_posts_only_outside_dry_run(make_finding: ReviewFind
 def test_review_pull_request_skips_drafts_without_running_the_agent(pull_request: PullRequest) -> None:
     draft_pull_request: PullRequest = PullRequest(**{**pull_request.__dict__, "is_draft": True})
     client: FakePullRequestClient = FakePullRequestClient(draft_pull_request, [])
-    agent_client: FakeReviewAgentClient = FakeReviewAgentClient(
+    agent_client: FakeReviewAgent = FakeReviewAgent(
         ReviewAgentRun(findings=[], turn_count=0, total_cost_usd=None))
 
     result: PullRequestReviewResult = review_pull_request(client, agent_client, 7, is_dry_run=False)

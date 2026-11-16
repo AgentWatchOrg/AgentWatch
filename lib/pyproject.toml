@@ -7,10 +7,11 @@ name = "agent-watch"
 version = "0"
 description = "AgentWatch core library and command line interface"
 requires-python = ">=3.12"
-dependencies = ["click>=8.1,<9", "claude-agent-sdk>=0.2.182,<0.3"]
+dependencies = ["click>=8.1,<9"]
 
 [project.optional-dependencies]
-development = ["mypy>=1.11", "build>=1.2", "pytest>=8.3"]
+pull-request-review = ["claude-agent-sdk>=0.2.182,<0.3"]
+development = ["agent-watch[pull-request-review]", "mypy>=1.11", "build>=1.2", "pytest>=8.3"]
 
 [project.scripts]
 agent-watch = "agent_watch.cli.main:agent_watch"

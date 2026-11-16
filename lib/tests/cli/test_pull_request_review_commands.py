@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 from click.testing import CliRunner, Result
 from doubles.pull_request_review_test_doubles import ReviewFindingFactory
@@ -84,3 +87,23 @@ def test_check_ticket_reference_reports_and_sets_the_exit_code(
     assert result.exit_code == expected_exit_code
     assert expected_message in result.output
 
+
+
+def test_cli_loads_without_importing_the_claude_agent_sdk() -> None:
+    import_check: subprocess.CompletedProcess[str] = subprocess.run(
+        [sys.executable, "-c", "import sys, agent_watch.cli.main; print('claude_agent_sdk' in sys.modules)"],
+        capture_output=True, text=True, check=True)
+
+    assert import_check.stdout.strip() == "False"
+
+
+def test_review_explains_how_to_install_the_sdk_when_it_is_missing(cli_runner: CliRunner,
+                                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "claude_agent_sdk", None)
+    monkeypatch.delitem(sys.modules, "agent_watch.api.pull_request_review.review_agent_client", raising=False)
+
+    result: Result = cli_runner.invoke(agent_watch, ["pull-request-review", "review"],
+                                       env={"GITHUB_TOKEN": "token", "PULL_REQUEST_NUMBER": "30"})
+
+    assert result.exit_code == 1
+    assert "pip install 'agent-watch[pull-request-review]'" in result.output

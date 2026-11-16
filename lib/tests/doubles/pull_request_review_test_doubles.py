@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Protocol
 
 from doubles.github_test_doubles import ScriptedGitHubClient
@@ -7,7 +6,6 @@ from agent_watch.api.pull_request_review.models import (
     ExistingReviewThread, PlannedReviewComment, PullRequest, ReferencedIssue, ReviewAgentRun, ReviewFinding,
     ReviewFindingCategory, ReviewSeverity)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
-from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
 
 
 class ReviewFindingFactory(Protocol):
@@ -55,9 +53,8 @@ class FakePullRequestClient(PullRequestClient):
         return "https://github.com/AgentWatchOrg/AgentWatch/pull/7#issuecomment-1"
 
 
-class FakeReviewAgentClient(ClaudeReviewAgentClient):
+class FakeReviewAgent:
     def __init__(self, agent_run: ReviewAgentRun) -> None:
-        super().__init__("test-model", 150, Path("."))
         self.agent_run: ReviewAgentRun = agent_run
         self.received_existing_threads: list[ExistingReviewThread] = []
 

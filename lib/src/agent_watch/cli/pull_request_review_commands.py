@@ -7,7 +7,6 @@ from agent_watch.api.pull_request_review.check_ticket_reference import check_tic
 from agent_watch.api.pull_request_review.models import (
     DEFAULT_REVIEW_MODEL, MAXIMUM_AGENT_TURNS, PlannedReviewComment, PullRequestReviewResult, TicketReferenceCheck)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
-from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
 from agent_watch.api.pull_request_review.review_pull_request import review_pull_request
 
 
@@ -30,6 +29,12 @@ def pull_request_review() -> None:
               help="Print planned comments without posting them. Env: IS_DRY_RUN")
 def review_command(github_token: str, repository: str, pull_request_number: int, repository_directory: Path,
                    model: str, maximum_agent_turns: int, is_dry_run: bool) -> None:
+    try:
+        # The Claude Agent SDK is an optional extra; other commands must work without it.
+        from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
+    except ImportError as error:
+        raise click.ClickException(
+            "The review command needs the Claude Agent SDK: pip install 'agent-watch[pull-request-review]'") from error
     result: PullRequestReviewResult = review_pull_request(
         PullRequestClient(GitHubClient(github_token), repository),
         ClaudeReviewAgentClient(model, maximum_agent_turns, repository_directory.resolve()),

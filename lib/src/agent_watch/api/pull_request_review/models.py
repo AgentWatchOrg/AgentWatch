@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Protocol
 
 MAXIMUM_AGENT_TURNS: int = 150
 DEFAULT_REVIEW_MODEL: str = "claude-opus-5-5"
@@ -146,3 +147,8 @@ class TicketReferenceCheck:
     def is_passing(self) -> bool:
         return (bool(self.referenced_issue_numbers) and not self.missing_issue_numbers
                 and not self.pull_request_numbers_referenced_as_tickets)
+
+
+class ReviewAgent(Protocol):
+    def find_review_findings(self, pull_request: PullRequest,
+                             existing_threads: list[ExistingReviewThread]) -> ReviewAgentRun: ...

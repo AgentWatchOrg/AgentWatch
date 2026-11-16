@@ -59,7 +59,7 @@ jobs:
           python-version: "3.12"
       - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
         name: Install agent-watch from main
-        run: pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
+        run: pip install "agent-watch[pull-request-review] @ git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
       - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
         name: Review the pull request
         env:
