@@ -9,14 +9,14 @@ from zoneinfo import ZoneInfo
 
 JsonObject = dict[str, Any]
 
-GITHUB_TOKEN: str = os.environ["GH_TOKEN"]
-PROJECT_OWNER: str = os.environ.get("OWNER", "AgentWatchOrg")
+PROJECT_BOARD_TOKEN: str = os.environ["PROJECT_BOARD_TOKEN"]
+PROJECT_OWNER: str = os.environ.get("PROJECT_OWNER", "AgentWatchOrg")
 PROJECT_NUMBER: int = int(os.environ.get("PROJECT_NUMBER", "1"))
-SPRINT_LOG_REPOSITORY: str = os.environ.get("REPO", "AgentWatchOrg/AgentWatch")
-IS_DRY_RUN: bool = os.environ.get("DRY_RUN", "false").lower() == "true"
-SHOULD_POST_SUMMARY: bool = os.environ.get("POST_SUMMARY", "true").lower() == "true"
-MINIMUM_FUTURE_WEEKS: int = int(os.environ.get("MIN_FUTURE_WEEKS", "4"))
-TODAY: date = (date.fromisoformat(os.environ["TODAY"]) if os.environ.get("TODAY")
+SPRINT_LOG_REPOSITORY: str = os.environ.get("SPRINT_LOG_REPOSITORY", "AgentWatchOrg/AgentWatch")
+IS_DRY_RUN: bool = os.environ.get("IS_DRY_RUN", "false").lower() == "true"
+SHOULD_POST_SUMMARY: bool = os.environ.get("SHOULD_POST_SUMMARY", "true").lower() == "true"
+MINIMUM_FUTURE_WEEKS: int = int(os.environ.get("MINIMUM_FUTURE_WEEKS", "4"))
+TODAY: date = (date.fromisoformat(os.environ["SIMULATED_TODAY"]) if os.environ.get("SIMULATED_TODAY")
                else datetime.now(ZoneInfo("America/Edmonton")).date())
 
 WEEK_FIELD_NAME: str = "Week"
@@ -73,7 +73,7 @@ class ProjectItem:
 def github_request(method: str, url: str, body: JsonObject | None = None) -> Any:
     request: urllib.request.Request = urllib.request.Request(
         url, method=method, data=json.dumps(body).encode() if body else None,
-        headers={"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"})
+        headers={"Authorization": f"Bearer {PROJECT_BOARD_TOKEN}", "Accept": "application/vnd.github+json"})
     with urllib.request.urlopen(request) as response:
         return json.loads(response.read() or "null")
 
@@ -219,7 +219,7 @@ def find_or_create_sprint_log_issue_number() -> int:
             return existing_issue_number
     created_issue: JsonObject = github_request("POST", f"https://api.github.com/repos/{SPRINT_LOG_REPOSITORY}/issues", {
         "title": SPRINT_LOG_ISSUE_TITLE,
-        "body": "Weekly sprint summaries, posted every Monday by `.github/workflows/sprint-rollover.yml`."})
+        "body": "Weekly sprint summaries, posted every Monday by `.github/workflows/weekly-sprint-rollover.yml`."})
     created_issue_number: int = created_issue["number"]
     return created_issue_number
 

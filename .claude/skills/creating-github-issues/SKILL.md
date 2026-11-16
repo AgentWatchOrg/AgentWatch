@@ -1,9 +1,9 @@
 ---
-name: create-ticket
+name: creating-github-issues
 description: Use whenever creating a GitHub issue/ticket for AgentWatch. Writes a short title and a 1-3 sentence why, sets priority, and adds it to the AgentWatch Board.
 ---
 
-# Create a ticket
+# Creating GitHub issues
 
 Short beats complete. If unsure whether to include something, leave it out.
 
@@ -36,7 +36,7 @@ Type:
 - `bug` something broken
 - `spike` time-boxed research or a decision
 - `test` validation runs, test records
-- `documentation` docs, reports, deployment guide
+- `documentation` documentation pages, reports, deployment guide
 
 Area:
 - `sensor` eBPF/Tetragon, auditd
@@ -45,12 +45,12 @@ Area:
 - `detection` rules, correlation, detection records
 - `splunk` HEC export, searches, dashboards, observability
 - `agent` Claude Code / monitored agents, session attribution
-- `infra` VMs, deployment, CI/CD
-- `eval` evaluation harness, scenarios, metrics, demo replay
+- `infrastructure` VMs, deployment, CI/CD
+- `evaluation` evaluation harness, scenarios, metrics, demo replay
 
 ## Create it
 ```bash
-.claude/skills/create-ticket/create.sh "<title>" <p0-p4> <type,area[,area]> <<'EOF'
+.claude/skills/creating-github-issues/create_issue_and_add_to_project_board.sh "<title>" <p0-p4> <type,area[,area]> <<'EOF'
 <body>
 EOF
 ```

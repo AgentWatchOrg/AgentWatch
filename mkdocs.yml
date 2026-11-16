@@ -1,7 +1,9 @@
 site_name: AgentWatch
 site_url: https://agentwatchorg.github.io/AgentWatch/
 repo_url: https://github.com/AgentWatchOrg/AgentWatch
-edit_uri: edit/main/docs/
+docs_dir: documentation
+site_dir: built-documentation-site
+edit_uri: edit/main/documentation/
 
 theme:
   name: material

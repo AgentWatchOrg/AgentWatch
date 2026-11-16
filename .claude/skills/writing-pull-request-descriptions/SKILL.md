@@ -1,17 +1,17 @@
 ---
-name: pr-description
+name: writing-pull-request-descriptions
 description: Use whenever opening or editing a pull request for AgentWatch. Writes a short title and a minimal Why/What description linked to its ticket.
 ---
 
-# PR description
+# Writing pull request descriptions
 
 As short as possible. Too sparse is fine; too long is not.
 
 ## Size
-Over 500 changed lines: stop and split it using the `stacked-prs` skill.
+Over 500 changed lines: stop and split it using the `splitting-large-pull-requests-into-stacks` skill.
 
 ## Ticket link (required)
-Every PR closes a ticket. Find the number from the branch name, commits, or the conversation. If none exists, create one with the `create-ticket` skill first. Never open a PR without `Closes #N`.
+Every PR closes a ticket. Find the number from the branch name, commits, or the conversation. If none exists, create one with the `creating-github-issues` skill first. Never open a PR without `Closes #N`.
 
 ## Title
 Under ~60 characters, imperative, no ticket number, no prefix: "Add HEC export retry".

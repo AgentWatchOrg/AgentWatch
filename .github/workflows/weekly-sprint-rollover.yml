@@ -1,4 +1,4 @@
-name: Sprint rollover
+name: Weekly sprint rollover
 
 on:
   schedule:
@@ -6,16 +6,16 @@ on:
     - cron: "0 7 * * 1"
   workflow_dispatch:
     inputs:
-      dry_run:
+      is_dry_run:
         description: "Only print what would change"
         type: boolean
         default: true
 
 concurrency:
-  group: sprint-rollover
+  group: weekly-sprint-rollover
 
 jobs:
-  rollover:
+  roll_unfinished_cards_into_current_week:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,6 @@ jobs:
       - name: Roll unfinished cards into this week
         env:
           # The default GITHUB_TOKEN cannot edit org projects.
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
-        run: python .github/scripts/sprint_rollover.py
+          PROJECT_BOARD_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          IS_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.is_dry_run || 'false' }}
+        run: python .github/scripts/roll_unfinished_cards_into_current_week.py

@@ -1,9 +1,9 @@
 ---
-name: stacked-prs
+name: splitting-large-pull-requests-into-stacks
 description: Use before opening or pushing any AgentWatch pull request, and when planning a change that may grow large. PRs over 500 changed lines must be split into a stack of smaller PRs.
 ---
 
-# Stacked PRs
+# Splitting large pull requests into stacks
 
 No PR over 500 changed lines (additions + deletions). Split bigger work into a stack: a chain of PRs where each one builds on the one below it.
 
@@ -22,7 +22,7 @@ Each PR in the stack:
 - leaves main working if merged alone (builds, tests pass)
 - stays under 500 lines
 
-Typical order: schema/interfaces → core logic → wiring/integration → docs. Tests go in the same PR as the code they test.
+Typical order: schema/interfaces → core logic → wiring/integration → documentation. Tests go in the same PR as the code they test.
 
 ## Build the stack
 ```bash
@@ -37,7 +37,7 @@ gh pr create --base feat/hec-1-schema ...
 Each PR's base is the branch below it, so reviewers see only that PR's diff.
 
 ## PR descriptions
-Follow the `pr-description` skill, with two changes:
+Follow the `writing-pull-request-descriptions` skill, with two changes:
 - Only the top PR says `Closes #N`. The others say `Part of #N`, so the ticket stays open until the last piece merges.
 - Add one line under it:
 ```

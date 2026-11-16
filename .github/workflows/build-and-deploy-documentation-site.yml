@@ -1,11 +1,11 @@
-name: Docs
+name: Build and deploy documentation site
 
 on:
   push:
     branches: [main]
-    paths: ["docs/**", "mkdocs.yml"]
+    paths: ["documentation/**", "documentation-site-requirements.txt", "mkdocs.yml"]
   pull_request:
-    paths: ["docs/**", "mkdocs.yml"]
+    paths: ["documentation/**", "documentation-site-requirements.txt", "mkdocs.yml"]
   workflow_dispatch:
 
 permissions:
@@ -14,26 +14,26 @@ permissions:
   id-token: write
 
 concurrency:
-  group: docs
+  group: build-and-deploy-documentation-site
   cancel-in-progress: true
 
 jobs:
-  build:
+  build_documentation_site:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r docs/requirements.txt
+      - run: pip install -r documentation-site-requirements.txt
       - run: mkdocs build --strict
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: built-documentation-site
 
-  deploy:
+  deploy_documentation_site_to_github_pages:
     if: github.ref == 'refs/heads/main'
-    needs: build
+    needs: build_documentation_site
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -1,17 +1,23 @@
 ---
-name: code-style
-description: Use whenever writing or editing any code in AgentWatch (Python, shell, YAML, anything). Descriptive names instead of comments, full type hints, comments only when absolutely necessary.
+name: naming-typing-and-comments
+description: Use whenever creating or naming anything in AgentWatch (code, files, folders, workflows, jobs, env vars, config keys, labels, skills) and whenever writing or editing code. Descriptive names instead of comments, full type hints, comments only when absolutely necessary.
 ---
 
-# Code style
+# Naming, typing, and comments
 
-The code explains itself through names and types. Comments are a last resort.
+Names and types explain everything. Comments are a last resort.
 
 ## Names
-- Variables, functions, classes, and files get names long enough that no comment is needed: `unfinished_project_items`, not `items`; `move_item_to_week()`, not `update()`.
-- No abbreviations except universal ones (`id`, `url`, `api`, `json`).
+Applies to every name you create, not just code: variables, functions, classes, files, folders, scripts, workflow files, workflow and job names, environment variables, config keys, labels, branches, and skills.
+- Long enough that a reader knows what it is or does without opening it: `unfinished_project_items`, not `items`; `build-and-deploy-documentation-site.yml`, not `docs.yml`.
+- No abbreviations except `id`, `url`, `api`, `json`, `pr`. Spell out `documentation`, `configuration`, `infrastructure`, `evaluation`, `utilities`, `message`, `temporary`, `request`, `response`.
+- No vague names: `utils`, `helpers`, `misc`, `common`, `data`, `info`, `manager`, `handler`, `process`, `run`.
 - Booleans read as questions: `is_finished`, `has_next_page`, `should_post_summary`.
+- Environment variables match the constant they load into.
 - If a block needs a comment to explain what it does, extract it into a function whose name says it.
+- Exception: names a tool requires (`mkdocs.yml`, `SKILL.md`, `README.md`, `.gitignore`).
+
+Before finishing, list every name you added or changed and expand any that fail these rules.
 
 ## Type hints
 - Every function parameter and return value is typed.
