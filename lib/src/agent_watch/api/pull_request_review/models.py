@@ -9,6 +9,10 @@ REVIEW_SUMMARY_MARKER: str = "<!-- agent-watch-pull-request-review-summary -->"
 FINDING_MARKER_TEMPLATE: str = "<!-- agent-watch-review-finding fingerprint={fingerprint} category={category} -->"
 FINDING_MARKER_PATTERN: re.Pattern[str] = re.compile(
     r"<!-- agent-watch-review-finding fingerprint=(?P<fingerprint>[0-9a-f]+) category=(?P<category>[a-z_]+) -->")
+MERGE_REQUIREMENTS_BYPASS_LABEL: str = "bypass-merge-requirements"
+MERGE_REQUIREMENTS_BYPASS_MARKER: str = "<!-- agent-watch-merge-requirements-bypass -->"
+ADMIN_PERMISSION: str = "admin"
+APPROVED_REVIEW_STATE: str = "APPROVED"
 
 
 class PullRequestReviewError(Exception):
@@ -32,6 +36,12 @@ class ReviewFindingCategory(StrEnum):
     MAINTAINABILITY = "maintainability"
     DOCUMENTATION = "documentation"
     OTHER = "other"
+
+
+class MergeRequirementsBypassChange(StrEnum):
+    APPROVE = "approve"
+    DISMISS_BYPASS_APPROVAL = "dismiss bypass approval"
+    REMOVE_UNAUTHORIZED_LABEL = "remove unauthorized label"
 
 
 class CommentPlacement(StrEnum):
@@ -147,6 +157,29 @@ class TicketReferenceCheck:
     def is_passing(self) -> bool:
         return (bool(self.referenced_issue_numbers) and not self.missing_issue_numbers
                 and not self.pull_request_numbers_referenced_as_tickets)
+
+
+@dataclass(frozen=True)
+class LabelEvent:
+    label_name: str
+    is_added: bool
+    actor_login: str
+
+
+@dataclass(frozen=True)
+class SubmittedReview:
+    id: int
+    state: str
+    body: str
+
+
+@dataclass(frozen=True)
+class MergeRequirementsBypassPlan:
+    pull_request_number: int
+    labeled_by_login: str | None
+    is_authorized: bool
+    changes: list[MergeRequirementsBypassChange]
+    bypass_approval_ids_to_dismiss: list[int]
 
 
 class ReviewAgent(Protocol):

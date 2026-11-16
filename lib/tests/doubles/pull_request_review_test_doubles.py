@@ -3,8 +3,8 @@ from typing import Protocol
 from doubles.github_test_doubles import ScriptedGitHubClient
 
 from agent_watch.api.pull_request_review.models import (
-    ExistingReviewThread, PlannedReviewComment, PullRequest, ReferencedIssue, ReviewAgentRun, ReviewFinding,
-    ReviewFindingCategory, ReviewSeverity)
+    ExistingReviewThread, LabelEvent, PlannedReviewComment, PullRequest, ReferencedIssue, ReviewAgentRun,
+    ReviewFinding, ReviewFindingCategory, ReviewSeverity, SubmittedReview)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
 
 
@@ -32,6 +32,10 @@ class FakePullRequestClient(PullRequestClient):
         self.referenced_issues_by_number: dict[int, ReferencedIssue] = {
             issue.number: issue for issue in referenced_issues or []}
         self.recorded_calls: list[tuple[str, ...]] = []
+        self.label_names: list[str] = []
+        self.label_events: list[LabelEvent] = []
+        self.permissions_by_login: dict[str, str] = {}
+        self.reviews: list[SubmittedReview] = []
 
     def load_pull_request(self, pull_request_number: int) -> PullRequest:
         return self.pull_request
@@ -51,6 +55,29 @@ class FakePullRequestClient(PullRequestClient):
     def create_or_update_review_summary(self, pull_request_number: int, summary: str) -> str:
         self.recorded_calls.append(("create_or_update_review_summary", str(pull_request_number)))
         return "https://github.com/AgentWatchOrg/AgentWatch/pull/7#issuecomment-1"
+
+    def load_label_names(self, pull_request_number: int) -> list[str]:
+        return self.label_names
+
+    def load_label_events(self, pull_request_number: int) -> list[LabelEvent]:
+        self.recorded_calls.append(("load_label_events",))
+        return self.label_events
+
+    def load_repository_permission(self, login: str) -> str:
+        self.recorded_calls.append(("load_repository_permission", login))
+        return self.permissions_by_login.get(login, "none")
+
+    def load_reviews(self, pull_request_number: int) -> list[SubmittedReview]:
+        return self.reviews
+
+    def approve_pull_request(self, pull_request_number: int, body: str) -> None:
+        self.recorded_calls.append(("approve_pull_request", str(pull_request_number)))
+
+    def dismiss_review(self, pull_request_number: int, review_id: int, message: str) -> None:
+        self.recorded_calls.append(("dismiss_review", str(review_id)))
+
+    def remove_label(self, pull_request_number: int, label_name: str) -> None:
+        self.recorded_calls.append(("remove_label", label_name))
 
 
 class FakeReviewAgent:
