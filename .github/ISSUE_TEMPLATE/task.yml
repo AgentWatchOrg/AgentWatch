@@ -1,0 +1,23 @@
+name: Task
+description: A piece of work that fits in one week
+projects: ["AgentWatchOrg/1"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What needs to be built or changed, and why.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: How anyone can check this is finished. If it won't fit in one week, split it.
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / links
