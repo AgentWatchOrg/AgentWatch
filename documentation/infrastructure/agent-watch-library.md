@@ -1,6 +1,6 @@
 # agent-watch library
 
-Source: `lib/`. Released as a wheel on [GitHub Releases](https://github.com/AgentWatchOrg/AgentWatch/releases).
+Source: `lib/`. Not versioned: everything installs whatever is on `main`.
 
 | Package | Contents |
 |---|---|
@@ -8,10 +8,9 @@ Source: `lib/`. Released as a wheel on [GitHub Releases](https://github.com/Agen
 | `agent_watch.cli` | `agent-watch` Click commands that call `api` and print results. |
 
 ## Install
-Latest release:
+From main:
 ```bash
-gh release download --repo AgentWatchOrg/AgentWatch --pattern "agent_watch-*.whl" --dir agent-watch-release
-pip install agent-watch-release/*.whl
+pip install "git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
 ```
 For development:
 ```bash
@@ -53,9 +52,5 @@ cd lib && mypy src tests && pytest
 ```
 `run_type_checks_and_unit_tests` runs on every PR and must pass to merge.
 
-## Release
-1. Change code under `lib/src/`, with tests.
-2. Bump `lib/VERSION` (semver) in the same PR.
-3. Merge to main. `release-agent-watch-library.yml` tests, builds, and publishes release `v<VERSION>`.
-
-Workflows install the latest release on every run.
+## Changes reaching workflows
+Workflows install from `main` on every run, so a merged change is live on the next run. To undo one, revert it on `main`.

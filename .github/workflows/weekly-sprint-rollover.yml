@@ -21,12 +21,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install latest agent-watch release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download --repo "${{ github.repository }}" --pattern "agent_watch-*.whl" --dir agent-watch-release
-          pip install agent-watch-release/*.whl
+      - name: Install agent-watch from main
+        run: pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
       - name: Roll unfinished cards into this week
         env:
           # The default GITHUB_TOKEN cannot edit org projects.

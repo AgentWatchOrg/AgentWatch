@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-watch"
-dynamic = ["version"]
+version = "0"
 description = "AgentWatch core library and command line interface"
 requires-python = ">=3.12"
 dependencies = ["click>=8.1,<9", "claude-agent-sdk>=0.2.182,<0.3"]
@@ -14,10 +14,6 @@ development = ["mypy>=1.11", "build>=1.2", "pytest>=8.3"]
 
 [project.scripts]
 agent-watch = "agent_watch.cli.main:agent_watch"
-
-[tool.hatch.version]
-path = "VERSION"
-pattern = "(?P<version>.+)"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_watch"]

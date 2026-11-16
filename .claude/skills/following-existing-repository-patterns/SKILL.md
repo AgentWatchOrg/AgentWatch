@@ -31,8 +31,8 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
 | Tests | pytest in `lib/tests/`, folders mirroring `src/agent_watch/`; shared fakes in `lib/tests/doubles/`; required check `run_type_checks_and_unit_tests` |
-| Library releases | Bump `lib/VERSION` on main; `release-agent-watch-library.yml` tests and publishes a GitHub release with the wheel |
-| Workflows | Scheduled automation installs the latest `agent-watch` release; PR checks install `./lib` from the PR; then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
+| Library versions | None. `lib` is unversioned; never add a version file, release workflow, or version bump |
+| Workflows | Install `agent-watch` from main with `pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"`, never from a pull request's checkout, so PR code never runs with secrets or grades itself; then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |
 | Issues and PRs | `creating-github-issues`, `writing-pull-request-descriptions`, `splitting-large-pull-requests-into-stacks` |

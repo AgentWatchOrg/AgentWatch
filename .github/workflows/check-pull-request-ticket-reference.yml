@@ -13,12 +13,11 @@ jobs:
   check_pull_request_references_a_ticket:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # Installed from the pull request's own source so the check works before a release includes it.
-      - run: pip install ./lib
+      - name: Install agent-watch from main so a pull request cannot change its own check
+        run: pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
       - env:
           GITHUB_TOKEN: ${{ github.token }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
