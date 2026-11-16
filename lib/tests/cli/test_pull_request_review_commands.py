@@ -3,7 +3,7 @@ from click.testing import CliRunner, Result
 from doubles.pull_request_review_test_doubles import ReviewFindingFactory
 
 from agent_watch.api.pull_request_review.models import (
-    PullRequest, PullRequestReviewPlan, PullRequestReviewResult, ReviewAgentRun)
+    PullRequest, PullRequestReviewPlan, PullRequestReviewResult, ReviewAgentRun, TicketReferenceCheck)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
 from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
 from agent_watch.api.pull_request_review.review_pull_request import plan_pull_request_review
@@ -61,3 +61,26 @@ def test_review_reports_skipped_drafts(cli_runner: CliRunner, monkeypatch: pytes
 
     assert result.exit_code == 0, result.output
     assert "Skipped AgentWatchOrg/AgentWatch#7: draft pull request" in result.output
+
+
+@pytest.mark.parametrize(("check_result", "expected_exit_code", "expected_message"), [
+    (TicketReferenceCheck(30, [12, 14], [], []), 0, "References #12, #14."),
+    (TicketReferenceCheck(30, [], [], []), 1, "No ticket referenced."),
+    (TicketReferenceCheck(30, [999], [999], []), 1, "#999 does not exist in AgentWatchOrg/AgentWatch."),
+    (TicketReferenceCheck(30, [11], [], [11]), 1, "#11 is a pull request, not a ticket."),
+], ids=["passing", "no reference", "missing issue", "pull request reference"])
+def test_check_ticket_reference_reports_and_sets_the_exit_code(
+        cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, check_result: TicketReferenceCheck,
+        expected_exit_code: int, expected_message: str) -> None:
+    def fake_check_ticket_reference(client: PullRequestClient, pull_request_number: int) -> TicketReferenceCheck:
+        return check_result
+
+    monkeypatch.setattr(pull_request_review_commands, "check_ticket_reference", fake_check_ticket_reference)
+
+    result: Result = cli_runner.invoke(
+        agent_watch, ["pull-request-review", "check-ticket-reference"],
+        env={"GITHUB_TOKEN": "token", "GITHUB_REPOSITORY": "AgentWatchOrg/AgentWatch", "PULL_REQUEST_NUMBER": "30"})
+
+    assert result.exit_code == expected_exit_code
+    assert expected_message in result.output
+

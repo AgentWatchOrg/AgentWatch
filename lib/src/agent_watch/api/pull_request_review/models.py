@@ -127,3 +127,22 @@ class PullRequestReviewResult:
     plan: PullRequestReviewPlan | None
     summary: str | None
     summary_comment_url: str | None
+
+
+@dataclass(frozen=True)
+class ReferencedIssue:
+    number: int
+    is_pull_request: bool
+
+
+@dataclass(frozen=True)
+class TicketReferenceCheck:
+    pull_request_number: int
+    referenced_issue_numbers: list[int]
+    missing_issue_numbers: list[int]
+    pull_request_numbers_referenced_as_tickets: list[int]
+
+    @property
+    def is_passing(self) -> bool:
+        return (bool(self.referenced_issue_numbers) and not self.missing_issue_numbers
+                and not self.pull_request_numbers_referenced_as_tickets)

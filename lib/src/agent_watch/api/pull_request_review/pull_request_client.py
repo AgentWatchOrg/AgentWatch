@@ -1,9 +1,10 @@
 import re
+import urllib.error
 
 from agent_watch.api.github_client import GitHubClient, JsonObject
 from agent_watch.api.pull_request_review.models import (
     FINDING_MARKER_PATTERN, REVIEW_SUMMARY_MARKER, ChangedFile, ExistingReviewThread, PlannedReviewComment,
-    PullRequest, ReviewFindingCategory)
+    PullRequest, ReferencedIssue, ReviewFindingCategory)
 
 HUNK_HEADER_PATTERN: re.Pattern[str] = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<new_start>\d+)(?:,\d+)? @@")
 
@@ -37,6 +38,15 @@ class PullRequestClient:
                                        commentable_line_numbers=parse_commentable_line_numbers(changed_file.get("patch")))
                            for changed_file in changed_files],
         )
+
+    def find_issue(self, issue_number: int) -> ReferencedIssue | None:
+        try:
+            issue: JsonObject = self.github_client.request("GET", f"/repos/{self.repository}/issues/{issue_number}")
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return None
+            raise
+        return ReferencedIssue(number=issue["number"], is_pull_request="pull_request" in issue)
 
     def load_review_threads(self, pull_request_number: int) -> list[ExistingReviewThread]:
         repository_owner: str
