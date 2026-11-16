@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from httpx import Response
+from httpx2 import Response
 
 
 def test_health_returns_ok(api_client: TestClient) -> None:
