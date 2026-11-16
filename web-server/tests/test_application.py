@@ -8,5 +8,4 @@ def test_swagger_page_and_openapi_schema_are_served(api_client: TestClient) -> N
 
     assert swagger_response.status_code == 200
     assert "swagger-ui" in swagger_response.text
-    assert set(schema_response.json()["paths"]) == {
-        "/health", "/project-board/status-synchronization-plan", "/project-board/sprint-rollover-plan"}
+    assert set(schema_response.json()["paths"]) == {"/health"}

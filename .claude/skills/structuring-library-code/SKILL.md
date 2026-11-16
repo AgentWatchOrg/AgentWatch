@@ -39,11 +39,11 @@ Callable from the CLI and the web server with no changes.
 ```
 web-server/src/agent_watch_web_server/
   application.py          create_application(); includes every router
-  dependencies.py         FastAPI dependencies that build api clients from settings
-  web_server_settings.py  environment variables, read in one place
   routers/<area>_router.py
 ```
+- Add an endpoint only for something a client of AgentWatch needs over HTTP. Don't mirror CLI commands.
 - Routes call one api function and return its models; FastAPI serializes dataclasses.
+- Build api clients in FastAPI dependencies and read environment variables in one settings module, so tests can override them.
 - No business logic in routers; same rule as `cli`.
 - Tests use `fastapi.testclient.TestClient` with `dependency_overrides` and `monkeypatch` on the api function.
 
