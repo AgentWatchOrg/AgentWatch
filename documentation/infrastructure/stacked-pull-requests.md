@@ -10,3 +10,11 @@ main
          └─ feature/part-3 → base: feature/part-2
 ```
 Each pull request shows only its own diff.
+
+## Merge order
+Merge bottom-up. After a pull request merges, rebase the next branch onto `main` and retarget it:
+```bash
+git rebase --onto origin/main feature/part-1 feature/part-2
+git push --force-with-lease
+gh pr edit <next pull request> --base main
+```
