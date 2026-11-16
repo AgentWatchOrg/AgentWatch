@@ -1,0 +1,44 @@
+name: Release agent-watch CLI
+
+on:
+  push:
+    branches: [main]
+    paths: ["cli/VERSION"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-agent-watch-cli
+
+jobs:
+  build_and_publish_github_release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Read version
+        id: read_version
+        run: echo "release_tag=v$(cat cli/VERSION)" >> "$GITHUB_OUTPUT"
+      - name: Stop if this version is already released
+        id: check_existing_release
+        run: |
+          if gh release view "${{ steps.read_version.outputs.release_tag }}" >/dev/null 2>&1; then
+            echo "is_already_released=true" >> "$GITHUB_OUTPUT"
+            echo "${{ steps.read_version.outputs.release_tag }} already exists; bump cli/VERSION to release."
+          fi
+      - name: Build wheel and source archive
+        if: steps.check_existing_release.outputs.is_already_released != 'true'
+        run: |
+          pip install build
+          python -m build --outdir built-cli-packages cli
+      - name: Publish GitHub release
+        if: steps.check_existing_release.outputs.is_already_released != 'true'
+        run: |
+          gh release create "${{ steps.read_version.outputs.release_tag }}" built-cli-packages/* \
+            --title "agent-watch ${{ steps.read_version.outputs.release_tag }}" --generate-notes
