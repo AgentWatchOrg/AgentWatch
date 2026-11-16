@@ -23,36 +23,42 @@ class FakeHttpResponse:
         pass
 
 
-def install_fake_urlopen(monkeypatch: pytest.MonkeyPatch, response_body: Any) -> list[urllib.request.Request]:
-    sent_requests: list[urllib.request.Request] = []
+class RecordingUrlopen:
+    def __init__(self) -> None:
+        self.response_body: Any = None
+        self.sent_requests: list[urllib.request.Request] = []
 
-    def fake_urlopen(http_request: urllib.request.Request) -> FakeHttpResponse:
-        sent_requests.append(http_request)
-        return FakeHttpResponse(response_body)
+    def __call__(self, http_request: urllib.request.Request) -> FakeHttpResponse:
+        self.sent_requests.append(http_request)
+        return FakeHttpResponse(self.response_body)
 
+
+@pytest.fixture
+def recording_urlopen(monkeypatch: pytest.MonkeyPatch) -> RecordingUrlopen:
+    fake_urlopen: RecordingUrlopen = RecordingUrlopen()
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
-    return sent_requests
+    return fake_urlopen
 
 
-def test_request_sends_token_and_json_body(monkeypatch: pytest.MonkeyPatch) -> None:
-    sent_requests: list[urllib.request.Request] = install_fake_urlopen(monkeypatch, {"ok": True})
+def test_request_sends_token_and_json_body(recording_urlopen: RecordingUrlopen) -> None:
+    recording_urlopen.response_body = {"ok": True}
 
     response: Any = GitHubClient("secret-token").request("POST", "/repos/owner/name/issues", {"title": "Bug"})
 
     assert response == {"ok": True}
-    assert sent_requests[0].full_url == "https://api.github.com/repos/owner/name/issues"
-    assert sent_requests[0].get_header("Authorization") == "Bearer secret-token"
-    assert sent_requests[0].data == b'{"title": "Bug"}'
+    assert recording_urlopen.sent_requests[0].full_url == "https://api.github.com/repos/owner/name/issues"
+    assert recording_urlopen.sent_requests[0].get_header("Authorization") == "Bearer secret-token"
+    assert recording_urlopen.sent_requests[0].data == b'{"title": "Bug"}'
 
 
-def test_run_graphql_returns_data(monkeypatch: pytest.MonkeyPatch) -> None:
-    install_fake_urlopen(monkeypatch, {"data": {"viewer": {"login": "joshuajipp"}}})
+def test_run_graphql_returns_data(recording_urlopen: RecordingUrlopen) -> None:
+    recording_urlopen.response_body = {"data": {"viewer": {"login": "joshuajipp"}}}
 
     assert GitHubClient("token").run_graphql("{viewer{login}}") == {"viewer": {"login": "joshuajipp"}}
 
 
-def test_run_graphql_raises_on_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    install_fake_urlopen(monkeypatch, {"errors": [{"message": "Bad credentials"}]})
+def test_run_graphql_raises_on_errors(recording_urlopen: RecordingUrlopen) -> None:
+    recording_urlopen.response_body = {"errors": [{"message": "Bad credentials"}]}
 
     with pytest.raises(GitHubApiError, match="Bad credentials"):
         GitHubClient("token").run_graphql("{viewer{login}}")

@@ -19,7 +19,8 @@ lib/src/agent_watch/
     main.py               the agent-watch group
     <area>_commands.py    one command group per area
 lib/tests/                mirrors src/agent_watch: tests/api/<area>/test_<module>.py, tests/cli/test_<module>.py
-  doubles/                shared fakes and factories: <area>_test_doubles.py
+  conftest.py             fixtures shared by every test; nested conftest.py for fixtures used by one folder
+  doubles/                fake classes and factory Protocol types: <area>_test_doubles.py
 ```
 
 ## api
@@ -46,7 +47,10 @@ Every file in this order:
 - Test `plan_*` functions directly with model objects.
 - Test clients with a fake of the client they depend on; never call the real GitHub API.
 - Test commands with `click.testing.CliRunner` and `monkeypatch` on the api function.
-- Shared fakes and factories live in `lib/tests/doubles/<area>_test_doubles.py`, imported as `doubles.<area>_test_doubles`.
+- Get test data and fakes from pytest fixtures, never by constructing them inline in each test. Put a fixture in the nearest `conftest.py` that covers every test using it, or in the test module if only it uses the fixture.
+- Fixtures that need arguments return a factory; type it with a `Protocol` from `lib/tests/doubles/<area>_test_doubles.py`, where fake classes also live.
+- Use `@pytest.mark.parametrize` (with `ids`) when tests differ only in inputs and expected output.
+- Plain `assert` and `pytest.raises`; no unittest-style assertions.
 - Tests follow the same naming, typing, and layout rules as source.
 
 ```bash

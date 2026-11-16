@@ -1,23 +1,24 @@
-from datetime import date
+from typing import Protocol
 
 from agent_watch.api.github_client import GitHubClient
 from agent_watch.api.project_board.models import NewSprintWeek, OpenIssue, ProjectBoard, ProjectItem, SprintWeek
 from agent_watch.api.project_board.project_board_client import ProjectBoardClient
 
-WEEK_ONE: SprintWeek = SprintWeek(id="week-1", title="Week 1 (Nov 16)", start_date=date(2026, 11, 16), duration_days=7)
-WEEK_TWO: SprintWeek = SprintWeek(id="week-2", title="Week 2 (Nov 23)", start_date=date(2026, 11, 23), duration_days=7)
-WEEK_THREE: SprintWeek = SprintWeek(id="week-3", title="Week 3 (Jan 4)", start_date=date(2027, 1, 4), duration_days=7)
-STATUS_NAMES: list[str] = ["Backlog", "Ready", "In Progress", "Blocked", "Done"]
+
+class ProjectItemFactory(Protocol):
+    def __call__(self, item_id: str, status: str | None = "Ready", week: SprintWeek | None = None,
+                 issue_state: str | None = "OPEN", assignee_logins: list[str] | None = None,
+                 issue_number: int | None = 1) -> ProjectItem: ...
 
 
 class FakeProjectBoardClient(ProjectBoardClient):
     def __init__(self, board: ProjectBoard, items: list[ProjectItem], open_issues: list[OpenIssue],
-                 collaborator_logins: set[str] | None = None) -> None:
+                 collaborator_logins: set[str]) -> None:
         super().__init__(GitHubClient("unused-token"), "AgentWatchOrg", 1, "AgentWatchOrg/AgentWatch")
         self.board: ProjectBoard = board
         self.items: list[ProjectItem] = items
         self.open_issues: list[OpenIssue] = open_issues
-        self.collaborator_logins: set[str] = collaborator_logins or set()
+        self.collaborator_logins: set[str] = collaborator_logins
         self.recorded_calls: list[tuple[str, ...]] = []
 
     def load_board(self) -> ProjectBoard:
@@ -56,18 +57,6 @@ class FakeProjectBoardClient(ProjectBoardClient):
         self.recorded_calls.append(("comment_on_issue", str(issue_number)))
 
 
-def make_board(weeks: list[SprintWeek] | None = None) -> ProjectBoard:
-    return ProjectBoard(id="board-1", title="AgentWatch Board", week_field_id="week-field",
-                        weeks=weeks if weeks is not None else [WEEK_ONE, WEEK_TWO, WEEK_THREE],
-                        status_field_id="status-field",
-                        status_option_ids_by_name={name: f"option-{name}" for name in STATUS_NAMES})
-
-
-def make_item(item_id: str, status: str | None = "Ready", week: SprintWeek | None = None,
-              issue_state: str | None = "OPEN", assignee_logins: list[str] | None = None,
-              issue_number: int | None = 1) -> ProjectItem:
-    return ProjectItem(id=item_id, title=f"Title of {item_id}", status=status,
-                       week_id=week.id if week else None, week_title=week.title if week else None,
-                       week_start_date=week.start_date if week else None, issue_number=issue_number,
-                       issue_url=f"https://github.com/AgentWatchOrg/AgentWatch/issues/{issue_number}",
-                       issue_state=issue_state, assignee_logins=assignee_logins or [])
+class FakeProjectBoardClientFactory(Protocol):
+    def __call__(self, items: list[ProjectItem] | None = None, open_issues: list[OpenIssue] | None = None,
+                 collaborator_logins: set[str] | None = None) -> FakeProjectBoardClient: ...

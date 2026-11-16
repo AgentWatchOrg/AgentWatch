@@ -1,8 +1,10 @@
 from datetime import date
 
-from doubles.project_board_test_doubles import WEEK_ONE, WEEK_THREE, WEEK_TWO, FakeProjectBoardClient, make_board, make_item
+import pytest
+from doubles.project_board_test_doubles import (
+    FakeProjectBoardClient, FakeProjectBoardClientFactory, ProjectItemFactory)
 
-from agent_watch.api.project_board.models import NewSprintWeek, ProjectItem
+from agent_watch.api.project_board.models import NewSprintWeek, ProjectBoard, ProjectItem, SprintWeek
 from agent_watch.api.project_board.roll_over_sprint import (
     SprintRolloverPlan, SprintRolloverResult, build_sprint_summary, plan_new_weeks, plan_sprint_rollover,
     roll_over_sprint)
@@ -10,50 +12,57 @@ from agent_watch.api.project_board.roll_over_sprint import (
 FIRST_DAY_OF_WEEK_TWO: date = date(2026, 11, 23)
 
 
-def make_week_one_items() -> list[ProjectItem]:
+@pytest.fixture
+def week_one_items(make_item: ProjectItemFactory, week_one: SprintWeek) -> list[ProjectItem]:
     return [
-        make_item("unfinished", status="In Progress", week=WEEK_ONE, assignee_logins=["Ernesto-B"], issue_number=4),
-        make_item("finished", status="Done", week=WEEK_ONE, assignee_logins=["joshuajipp"], issue_number=12),
-        make_item("closed", status="Ready", week=WEEK_ONE, issue_state="CLOSED", issue_number=13),
+        make_item("unfinished", status="In Progress", week=week_one, assignee_logins=["Ernesto-B"], issue_number=4),
+        make_item("finished", status="Done", week=week_one, assignee_logins=["joshuajipp"], issue_number=12),
+        make_item("closed", status="Ready", week=week_one, issue_state="CLOSED", issue_number=13),
         make_item("backlog", status="Backlog", issue_number=1),
     ]
 
 
-def test_plan_carries_over_unfinished_items_and_lists_finished_ones() -> None:
-    plan: SprintRolloverPlan = plan_sprint_rollover(make_board(), make_week_one_items(), FIRST_DAY_OF_WEEK_TWO, 0)
-
-    assert plan.target_week == WEEK_TWO
-    assert plan.previous_week == WEEK_ONE
-    assert [item.id for item in plan.carried_over_items] == ["unfinished"]
-    assert [item.id for item in plan.finished_items] == ["finished", "closed"]
-    assert [item.id for item in plan.this_week_items] == ["unfinished"]
+@pytest.fixture
+def week_two_plan(project_board: ProjectBoard, week_one_items: list[ProjectItem]) -> SprintRolloverPlan:
+    return plan_sprint_rollover(project_board, week_one_items, FIRST_DAY_OF_WEEK_TWO, 0)
 
 
-def test_plan_during_a_break_targets_the_next_week() -> None:
-    plan: SprintRolloverPlan = plan_sprint_rollover(make_board(), make_week_one_items(), date(2026, 12, 21), 0)
-
-    assert plan.target_week == WEEK_THREE
-    assert plan.previous_week == WEEK_TWO
-
-
-def test_plan_new_weeks_tops_up_to_the_minimum() -> None:
-    new_weeks: list[NewSprintWeek] = plan_new_weeks([WEEK_ONE, WEEK_TWO], FIRST_DAY_OF_WEEK_TWO, 3)
-
-    assert new_weeks == [
-        NewSprintWeek(title="Week 3 (Nov 30)", start_date=date(2026, 11, 30), duration_days=7),
-        NewSprintWeek(title="Week 4 (Dec 7)", start_date=date(2026, 12, 7), duration_days=7),
-        NewSprintWeek(title="Week 5 (Dec 14)", start_date=date(2026, 12, 14), duration_days=7),
-    ]
+def test_plan_carries_over_unfinished_items_and_lists_finished_ones(
+        week_two_plan: SprintRolloverPlan, week_one: SprintWeek, week_two: SprintWeek) -> None:
+    assert week_two_plan.target_week == week_two
+    assert week_two_plan.previous_week == week_one
+    assert [item.id for item in week_two_plan.carried_over_items] == ["unfinished"]
+    assert [item.id for item in week_two_plan.finished_items] == ["finished", "closed"]
+    assert [item.id for item in week_two_plan.this_week_items] == ["unfinished"]
 
 
-def test_plan_new_weeks_adds_nothing_when_enough_remain() -> None:
-    assert plan_new_weeks([WEEK_ONE, WEEK_TWO, WEEK_THREE], date(2026, 11, 18), 2) == []
+def test_plan_during_a_break_targets_the_next_week(
+        project_board: ProjectBoard, week_one_items: list[ProjectItem], week_two: SprintWeek,
+        week_after_winter_break: SprintWeek) -> None:
+    plan: SprintRolloverPlan = plan_sprint_rollover(project_board, week_one_items, date(2026, 12, 21), 0)
+
+    assert plan.target_week == week_after_winter_break
+    assert plan.previous_week == week_two
 
 
-def test_summary_lists_finished_carried_over_and_people_without_work() -> None:
-    plan: SprintRolloverPlan = plan_sprint_rollover(make_board(), make_week_one_items(), FIRST_DAY_OF_WEEK_TWO, 0)
+@pytest.mark.parametrize(("minimum_future_weeks", "expected_titles"), [
+    (1, ["Week 3 (Nov 30)"]),
+    (3, ["Week 3 (Nov 30)", "Week 4 (Dec 7)", "Week 5 (Dec 14)"]),
+])
+def test_plan_new_weeks_tops_up_to_the_minimum(week_one: SprintWeek, week_two: SprintWeek,
+                                               minimum_future_weeks: int, expected_titles: list[str]) -> None:
+    new_weeks: list[NewSprintWeek] = plan_new_weeks([week_one, week_two], FIRST_DAY_OF_WEEK_TWO, minimum_future_weeks)
 
-    summary: str = build_sprint_summary(plan, {"Ernesto-B", "joshuajipp", "graziamena"})
+    assert [week.title for week in new_weeks] == expected_titles
+    assert new_weeks[0] == NewSprintWeek(title="Week 3 (Nov 30)", start_date=date(2026, 11, 30), duration_days=7)
+
+
+def test_plan_new_weeks_adds_nothing_when_enough_remain(project_board: ProjectBoard) -> None:
+    assert plan_new_weeks(project_board.weeks, date(2026, 11, 18), 2) == []
+
+
+def test_summary_lists_finished_carried_over_and_people_without_work(week_two_plan: SprintRolloverPlan) -> None:
+    summary: str = build_sprint_summary(week_two_plan, {"Ernesto-B", "joshuajipp", "graziamena"})
 
     assert summary.startswith("## Week 2 (Nov 23) has started")
     assert "**Finished in Week 1 (Nov 16)** (2)" in summary
@@ -62,14 +71,13 @@ def test_summary_lists_finished_carried_over_and_people_without_work() -> None:
     assert "**No cards this week:** @graziamena, @joshuajipp" in summary
 
 
-def test_summary_says_everyone_has_work_when_nobody_is_idle() -> None:
-    plan: SprintRolloverPlan = plan_sprint_rollover(make_board(), make_week_one_items(), FIRST_DAY_OF_WEEK_TWO, 0)
-
-    assert "everyone has work" in build_sprint_summary(plan, {"Ernesto-B"})
+def test_summary_says_everyone_has_work_when_nobody_is_idle(week_two_plan: SprintRolloverPlan) -> None:
+    assert "everyone has work" in build_sprint_summary(week_two_plan, {"Ernesto-B"})
 
 
-def test_dry_run_builds_the_summary_without_changing_or_posting() -> None:
-    client: FakeProjectBoardClient = FakeProjectBoardClient(make_board(), make_week_one_items(), [], {"joshuajipp"})
+def test_dry_run_builds_the_summary_without_changing_or_posting(
+        make_fake_client: FakeProjectBoardClientFactory, week_one_items: list[ProjectItem]) -> None:
+    client: FakeProjectBoardClient = make_fake_client(items=week_one_items, collaborator_logins={"joshuajipp"})
 
     result: SprintRolloverResult = roll_over_sprint(client, FIRST_DAY_OF_WEEK_TWO, 4, should_post_summary=True,
                                                     is_dry_run=True)
@@ -79,8 +87,9 @@ def test_dry_run_builds_the_summary_without_changing_or_posting() -> None:
     assert client.recorded_calls == []
 
 
-def test_real_run_moves_cards_adds_weeks_and_posts_the_summary() -> None:
-    client: FakeProjectBoardClient = FakeProjectBoardClient(make_board(), make_week_one_items(), [], {"joshuajipp"})
+def test_real_run_moves_cards_adds_weeks_and_posts_the_summary(
+        make_fake_client: FakeProjectBoardClientFactory, week_one_items: list[ProjectItem]) -> None:
+    client: FakeProjectBoardClient = make_fake_client(items=week_one_items, collaborator_logins={"joshuajipp"})
 
     result: SprintRolloverResult = roll_over_sprint(client, FIRST_DAY_OF_WEEK_TWO, 2, should_post_summary=True,
                                                     is_dry_run=False)
@@ -94,8 +103,9 @@ def test_real_run_moves_cards_adds_weeks_and_posts_the_summary() -> None:
     ]
 
 
-def test_run_without_summary_skips_posting() -> None:
-    client: FakeProjectBoardClient = FakeProjectBoardClient(make_board(), make_week_one_items(), [])
+def test_run_without_summary_skips_posting(
+        make_fake_client: FakeProjectBoardClientFactory, week_one_items: list[ProjectItem]) -> None:
+    client: FakeProjectBoardClient = make_fake_client(items=week_one_items)
 
     result: SprintRolloverResult = roll_over_sprint(client, FIRST_DAY_OF_WEEK_TWO, 0, should_post_summary=False,
                                                     is_dry_run=False)
