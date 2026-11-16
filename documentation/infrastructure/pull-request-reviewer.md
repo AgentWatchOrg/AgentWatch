@@ -19,8 +19,6 @@ Configured: app `agentwatch-roboreviewer` (App ID `5779453`), installed on this 
    ```
    Delete the `.pem` afterwards.
 
-A summary comment already posted by `github-actions` can't be edited by the app; delete it once and RoboReviewer posts a new one.
-
 ## When it runs
 `review-pull-requests-with-claude.yml` runs on `opened`, `reopened`, `ready_for_review`, and every push (`synchronize`) to a pull request whose base is `main`. Drafts are skipped until marked ready. A newer push cancels a review still running for the same pull request.
 
