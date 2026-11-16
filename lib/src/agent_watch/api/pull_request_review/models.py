@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 MAXIMUM_AGENT_TURNS: int = 150
-DEFAULT_REVIEW_MODEL: str = "us.anthropic.claude-opus-5-5"
+DEFAULT_REVIEW_MODEL: str = "claude-opus-5-5"
 REVIEW_SUMMARY_MARKER: str = "<!-- agent-watch-pull-request-review-summary -->"
 FINDING_MARKER_TEMPLATE: str = "<!-- agent-watch-review-finding fingerprint={fingerprint} category={category} -->"
 FINDING_MARKER_PATTERN: re.Pattern[str] = re.compile(

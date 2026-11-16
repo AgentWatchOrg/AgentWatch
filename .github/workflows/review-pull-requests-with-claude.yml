@@ -18,7 +18,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  id-token: write
 
 concurrency:
   group: review-pull-request-with-claude-${{ github.event.pull_request.number || inputs.pull_request_number }}
@@ -26,40 +25,49 @@ concurrency:
 
 jobs:
   review_pull_request_with_claude:
-    if: vars.PULL_REQUEST_REVIEWER_ROLE_ARN != '' && (github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft)
+    if: github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || inputs.pull_request_number }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Stop when no Claude credential is configured
+        id: check_claude_credential
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "has_claude_credential=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Set the ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN repository secret to enable reviews."
+          fi
+      - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
+        uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ env.PULL_REQUEST_NUMBER }}/head
           fetch-depth: 0
-      - name: Use main's Claude configuration so a pull request cannot change its own review rules
+      - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
+        name: Use main's Claude configuration so a pull request cannot change its own review rules
         run: |
           for claude_configuration_path in .claude CLAUDE.md .mcp.json; do
             rm -rf "$claude_configuration_path"
             git checkout origin/main -- "$claude_configuration_path" 2>/dev/null || true
           done
-      - uses: actions/setup-python@v5
+      - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install latest agent-watch release
+      - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
+        name: Install latest agent-watch release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download --repo "${{ github.repository }}" --pattern "agent_watch-*.whl" --dir agent-watch-release
           pip install agent-watch-release/*.whl
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.PULL_REQUEST_REVIEWER_ROLE_ARN }}
-          aws-region: ${{ vars.PULL_REQUEST_REVIEWER_AWS_REGION }}
-          role-duration-seconds: 7200
-      - name: Review the pull request
+      - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
+        name: Review the pull request
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          CLAUDE_CODE_USE_BEDROCK: "1"
-          PULL_REQUEST_REVIEWER_MODEL: ${{ vars.PULL_REQUEST_REVIEWER_MODEL || 'us.anthropic.claude-opus-5-5' }}
+          PULL_REQUEST_REVIEWER_MODEL: ${{ vars.PULL_REQUEST_REVIEWER_MODEL || 'claude-opus-5-5' }}
           IS_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.is_dry_run || 'false' }}
         run: agent-watch pull-request-review review

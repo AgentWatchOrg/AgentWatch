@@ -36,7 +36,7 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |
 | Issues and PRs | `creating-github-issues`, `writing-pull-request-descriptions`, `splitting-large-pull-requests-into-stacks` |
-| Claude agents | Claude Agent SDK on Bedrock, wrapped in an `api` client class; read-only tools, `max_turns` cap, structured output parsed into models; skills from `main` |
+| Claude agents | Claude Agent SDK with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` from repository secrets, wrapped in an `api` client class; read-only tools, `max_turns` cap, structured output parsed into models; skills from `main` |
 | Pull request review | `review-pull-requests-with-claude.yml` runs `agent-watch pull-request-review review`; rules in `reviewing-pull-requests-as-senior-staff-engineer` |
 
 When a new pattern is accepted, add it to this table in the same PR.

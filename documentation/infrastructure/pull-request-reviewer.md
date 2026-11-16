@@ -1,6 +1,6 @@
 # Pull request reviewer
 
-A Claude agent reviews every pull request into `main` at senior staff level and posts its findings as review comments. It runs on Claude Opus 5.5 through Amazon Bedrock, using the Claude Agent SDK, from `agent-watch pull-request-review review`.
+A Claude agent reviews every pull request into `main` at senior staff level and posts its findings as review comments. It runs on Claude Opus 5.5 through the Claude Agent SDK, from `agent-watch pull-request-review review`.
 
 ## When it runs
 `review-pull-requests-with-claude.yml` runs on `opened`, `reopened`, `ready_for_review`, and every push (`synchronize`) to a pull request whose base is `main`. Drafts are skipped until marked ready. A newer push cancels a review still running for the same pull request.
@@ -44,28 +44,25 @@ Each finding comment carries a hidden fingerprint of its path, category, and tit
 The agent also sees every existing comment, including human ones, and is told not to raise anything they cover. Resolving a thread is final: the reviewer never raises that finding again.
 
 ## Setup
-| Piece | Value |
-|---|---|
-| Stack | CloudFormation `agent-watch-pull-request-reviewer`, template `infrastructure/pull-request-reviewer/pull-request-reviewer-stack.yml` |
-| Access | GitHub OIDC role allowed only `bedrock:InvokeModel*` on Anthropic models |
-| Repository variables | `PULL_REQUEST_REVIEWER_ROLE_ARN`, `PULL_REQUEST_REVIEWER_AWS_REGION` (`us-east-1`), optional `PULL_REQUEST_REVIEWER_MODEL` |
+One repository secret, whichever you have:
 
-The workflow does nothing until `PULL_REQUEST_REVIEWER_ROLE_ARN` is set. Claude Opus 5.5 model access must be enabled in the Bedrock console.
+| Secret | From |
+|---|---|
+| `ANTHROPIC_API_KEY` | An API key from console.anthropic.com, billed per token |
+| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token`, using a Claude subscription's limits |
 
 ```bash
-aws cloudformation deploy --region ca-central-1 --stack-name agent-watch-pull-request-reviewer \
-  --template-file infrastructure/pull-request-reviewer/pull-request-reviewer-stack.yml \
-  --capabilities CAPABILITY_IAM \
-  --parameter-overrides GitHubActionsOidcProviderArn=arn:aws:iam::786714620860:oidc-provider/token.actions.githubusercontent.com
+gh secret set ANTHROPIC_API_KEY -R AgentWatchOrg/AgentWatch
 ```
+
+Without either secret the job stops after its first step and posts nothing. Repository variable `PULL_REQUEST_REVIEWER_MODEL` overrides the model (default `claude-opus-5-5`).
 
 ## Run it by hand
 ```bash
 gh workflow run review-pull-requests-with-claude.yml -R AgentWatchOrg/AgentWatch -f pull_request_number=<number> -f is_dry_run=true
 ```
 
-Locally, from a checkout of the pull request head, with AWS credentials that can call Bedrock:
+Locally, from a checkout of the pull request head, with `ANTHROPIC_API_KEY` exported or `claude auth login` done:
 ```bash
-CLAUDE_CODE_USE_BEDROCK=1 AWS_REGION=us-east-1 GITHUB_TOKEN=$(gh auth token) \
-  agent-watch pull-request-review review --pull-request-number <number> --dry-run
+GITHUB_TOKEN=$(gh auth token) agent-watch pull-request-review review --pull-request-number <number> --dry-run
 ```
