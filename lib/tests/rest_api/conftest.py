@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from agent_watch_web_server.application import application
+from agent_watch.rest_api.application import application
 
 
 @pytest.fixture

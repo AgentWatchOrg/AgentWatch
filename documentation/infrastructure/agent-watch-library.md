@@ -4,8 +4,9 @@ Source: `lib/`. Not versioned: everything installs whatever is on `main`.
 
 | Package | Contents |
 |---|---|
-| `agent_watch.api` | Core logic. Returns models, raises exceptions, never prints. Callable from the CLI or a REST API. |
+| `agent_watch.api` | Core logic. Returns models, raises exceptions, never prints. Callable from the CLI or the REST API. |
 | `agent_watch.cli` | `agent-watch` Click commands that call `api` and print results. |
+| `agent_watch.rest_api` | FastAPI app that calls `api`; needs the `rest-api` extra. See [Web server](web-server.md). |
 
 ## Install
 Into its own environment, from main:
