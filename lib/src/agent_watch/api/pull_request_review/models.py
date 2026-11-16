@@ -1,0 +1,187 @@
+import re
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Protocol
+
+MAXIMUM_AGENT_TURNS: int = 150
+DEFAULT_REVIEW_MODEL: str = "claude-opus-5-5"
+REVIEW_SUMMARY_MARKER: str = "<!-- agent-watch-pull-request-review-summary -->"
+FINDING_MARKER_TEMPLATE: str = "<!-- agent-watch-review-finding fingerprint={fingerprint} category={category} -->"
+FINDING_MARKER_PATTERN: re.Pattern[str] = re.compile(
+    r"<!-- agent-watch-review-finding fingerprint=(?P<fingerprint>[0-9a-f]+) category=(?P<category>[a-z_]+) -->")
+MERGE_REQUIREMENTS_BYPASS_LABEL: str = "bypass-merge-requirements"
+MERGE_REQUIREMENTS_BYPASS_MARKER: str = "<!-- agent-watch-merge-requirements-bypass -->"
+ADMIN_PERMISSION: str = "admin"
+APPROVED_REVIEW_STATE: str = "APPROVED"
+
+
+class PullRequestReviewError(Exception):
+    pass
+
+
+class ReviewSeverity(StrEnum):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class ReviewFindingCategory(StrEnum):
+    CORRECTNESS = "correctness"
+    SECURITY = "security"
+    PERFORMANCE = "performance"
+    RELIABILITY = "reliability"
+    TESTING = "testing"
+    REPOSITORY_GUIDELINES = "repository_guidelines"
+    MAINTAINABILITY = "maintainability"
+    DOCUMENTATION = "documentation"
+    OTHER = "other"
+
+
+class MergeRequirementsBypassChange(StrEnum):
+    APPROVE = "approve"
+    DISMISS_BYPASS_APPROVAL = "dismiss bypass approval"
+    REMOVE_UNAUTHORIZED_LABEL = "remove unauthorized label"
+
+
+class CommentPlacement(StrEnum):
+    LINE = "line"
+    FILE = "file"
+    SUMMARY_ONLY = "summary only"
+
+
+@dataclass(frozen=True)
+class ReviewFinding:
+    path: str
+    start_line: int
+    end_line: int
+    severity: ReviewSeverity
+    category: ReviewFindingCategory
+    title: str
+    explanation: str
+    failure_scenario: str
+    suggested_fix: str
+    violated_skill_name: str | None = None
+
+
+@dataclass(frozen=True)
+class ChangedFile:
+    path: str
+    commentable_line_numbers: frozenset[int]
+
+
+@dataclass(frozen=True)
+class PullRequest:
+    number: int
+    title: str
+    body: str
+    author_login: str
+    base_branch: str
+    base_sha: str
+    head_sha: str
+    is_draft: bool
+    changed_files: list[ChangedFile]
+
+
+@dataclass(frozen=True)
+class ExistingReviewThread:
+    path: str
+    start_line: int | None
+    line: int | None
+    is_resolved: bool
+    is_outdated: bool
+    author_login: str
+    body: str
+    finding_fingerprint: str | None
+    finding_category: ReviewFindingCategory | None
+
+
+@dataclass(frozen=True)
+class PlannedReviewComment:
+    finding: ReviewFinding
+    fingerprint: str
+    placement: CommentPlacement
+    start_line: int | None
+    line: int | None
+    body: str
+
+
+@dataclass(frozen=True)
+class PullRequestReviewPlan:
+    comments: list[PlannedReviewComment]
+    skipped_duplicate_findings: list[ReviewFinding]
+
+    @property
+    def line_comments(self) -> list[PlannedReviewComment]:
+        return [comment for comment in self.comments if comment.placement == CommentPlacement.LINE]
+
+    @property
+    def file_comments(self) -> list[PlannedReviewComment]:
+        return [comment for comment in self.comments if comment.placement == CommentPlacement.FILE]
+
+    @property
+    def summary_only_comments(self) -> list[PlannedReviewComment]:
+        return [comment for comment in self.comments if comment.placement == CommentPlacement.SUMMARY_ONLY]
+
+
+@dataclass(frozen=True)
+class ReviewAgentRun:
+    findings: list[ReviewFinding]
+    turn_count: int
+    total_cost_usd: float | None
+
+
+@dataclass(frozen=True)
+class PullRequestReviewResult:
+    pull_request: PullRequest
+    agent_run: ReviewAgentRun | None
+    plan: PullRequestReviewPlan | None
+    summary: str | None
+    summary_comment_url: str | None
+
+
+@dataclass(frozen=True)
+class ReferencedIssue:
+    number: int
+    is_pull_request: bool
+
+
+@dataclass(frozen=True)
+class TicketReferenceCheck:
+    pull_request_number: int
+    referenced_issue_numbers: list[int]
+    missing_issue_numbers: list[int]
+    pull_request_numbers_referenced_as_tickets: list[int]
+
+    @property
+    def is_passing(self) -> bool:
+        return (bool(self.referenced_issue_numbers) and not self.missing_issue_numbers
+                and not self.pull_request_numbers_referenced_as_tickets)
+
+
+@dataclass(frozen=True)
+class LabelEvent:
+    label_name: str
+    is_added: bool
+    actor_login: str
+
+
+@dataclass(frozen=True)
+class SubmittedReview:
+    id: int
+    state: str
+    body: str
+
+
+@dataclass(frozen=True)
+class MergeRequirementsBypassPlan:
+    pull_request_number: int
+    labeled_by_login: str | None
+    is_authorized: bool
+    changes: list[MergeRequirementsBypassChange]
+    bypass_approval_ids_to_dismiss: list[int]
+
+
+class ReviewAgent(Protocol):
+    def find_review_findings(self, pull_request: PullRequest,
+                             existing_threads: list[ExistingReviewThread]) -> ReviewAgentRun: ...

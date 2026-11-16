@@ -1,0 +1,26 @@
+name: Check pull request ticket reference
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  check_pull_request_references_a_ticket:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install agent-watch from main so a pull request cannot change its own check
+        run: pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          agent-watch pull-request-review check-merge-requirements-bypass \
+            || agent-watch pull-request-review check-ticket-reference

@@ -1,11 +1,11 @@
 ---
 name: structuring-library-code
-description: Use whenever writing or changing Python in AgentWatch. Core logic goes in lib/src/agent_watch/api so the CLI and the FastAPI web server can call it; both are thin layers; every file is ordered imports, globals, classes, functions; every function has a pytest unit test.
+description: Use whenever writing or changing Python in AgentWatch. Core logic goes in lib/src/agent_watch/api so the CLI and the REST API can call it; both are thin layers; every file is ordered imports, globals, classes, functions; every function has a pytest unit test.
 ---
 
 # Structuring library code
 
-Core logic lives in the `agent-watch` package under `lib/`. The FastAPI server in `web-server/` is a separate, unversioned package that depends on it.
+Everything lives in the `agent-watch` package under `lib/`: core logic in `api`, and two thin layers over it, the Click CLI in `cli` and the FastAPI REST API in `rest_api`.
 
 ```
 lib/src/agent_watch/
@@ -18,34 +18,39 @@ lib/src/agent_watch/
   cli/                    Click entry points only
     main.py               the agent-watch group
     <area>_commands.py    one command group per area
-lib/tests/                mirrors src/agent_watch: tests/api/<area>/test_<module>.py, tests/cli/test_<module>.py
+  rest_api/               FastAPI entry points only, behind the `rest-api` extra
+    application.py        create_application(); includes every router
+    routers/<area>_router.py
+lib/tests/                mirrors src/agent_watch: tests/api/<area>/test_<module>.py, tests/cli/test_<module>.py,
+                          tests/rest_api/routers/test_<area>_router.py
   conftest.py             fixtures shared by every test; nested conftest.py for fixtures used by one folder
   doubles/                fake classes and factory Protocol types: <area>_test_doubles.py
 ```
 
 ## api
-Callable from the CLI and the web server with no changes.
+Callable from the CLI and the REST API with no changes.
 - Takes plain arguments and clients as parameters. Returns models.
-- Never prints, reads environment variables, parses arguments, exits, or imports `click`.
+- Never prints, reads environment variables, parses arguments, exits, or imports `click`. Diagnostics go through the module logger.
 - Raises a specific exception from the area's `models.py` on failure.
 - Split each operation into a pure `plan_*` function (inputs → planned changes, no I/O), an `apply_*` function (performs the plan through a client), and one function that loads, plans, and applies unless it's a dry run.
 - Clients are classes that take their dependencies in `__init__`, so tests can pass fakes.
 
 ## cli
-- Parses options (each with an `envvar`), builds clients, calls one api function, prints the result.
+- Parses options (each with an `envvar`), builds clients, calls one api function, logs the result.
 - No business logic. If a command needs more than formatting, the logic belongs in `api`.
 
-## web-server
-```
-web-server/src/agent_watch_web_server/
-  application.py          create_application(); includes every router
-  routers/<area>_router.py
-```
+## rest_api
 - Add an endpoint only for something a client of AgentWatch needs over HTTP. Don't mirror CLI commands.
 - Routes call one api function and return its models; FastAPI serializes dataclasses.
 - Build api clients in FastAPI dependencies and read environment variables in one settings module, so tests can override them.
 - No business logic in routers; same rule as `cli`.
 - Tests use `fastapi.testclient.TestClient` with `dependency_overrides` and `monkeypatch` on the api function.
+
+## Logging
+- Every module that reports anything declares `logger: logging.Logger = logging.getLogger(__name__)` with its globals.
+- Never `print`, `click.echo`, or `click.secho`; `tests/test_no_printing.py` fails if any appear under `src/`.
+- `agent_watch.logging_configuration.configure_logging` is the only place handlers and format are set. The CLI calls it from `--log-level` (env `AGENT_WATCH_LOG_LEVEL`); the REST API calls it in `create_application`.
+- Levels: `debug` for request-level detail, `info` for results a person running the command wants, `warning` for recoverable problems, `error` for failures before exiting non-zero.
 
 ## File layout
 Every file in this order:

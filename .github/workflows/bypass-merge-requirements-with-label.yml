@@ -1,0 +1,29 @@
+name: Bypass merge requirements with label
+
+on:
+  pull_request:
+    types: [labeled, unlabeled]
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: bypass-merge-requirements-${{ github.event.pull_request.number }}
+
+jobs:
+  apply_merge_requirements_bypass_label:
+    if: github.event.label.name == 'bypass-merge-requirements'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install agent-watch from main so a pull request cannot change its own bypass
+        run: pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        run: agent-watch pull-request-review bypass-merge-requirements

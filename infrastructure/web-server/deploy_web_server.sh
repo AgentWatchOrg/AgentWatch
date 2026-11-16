@@ -9,7 +9,7 @@ git -C "$repository_directory" fetch --quiet origin
 git -C "$repository_directory" reset --quiet --hard "$deployed_commit"
 
 [[ -d $virtual_environment_directory ]] || python3.12 -m venv "$virtual_environment_directory"
-"$virtual_environment_directory/bin/pip" install --quiet --upgrade "$repository_directory/lib" "$repository_directory/web-server"
+"$virtual_environment_directory/bin/pip" install --quiet --upgrade "$repository_directory/lib[rest-api]"
 
 install -m 644 "$repository_directory/infrastructure/web-server/agent-watch-web-server.service" /etc/systemd/system/
 systemctl daemon-reload

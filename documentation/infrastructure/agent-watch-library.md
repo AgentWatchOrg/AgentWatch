@@ -1,17 +1,22 @@
 # agent-watch library
 
-Source: `lib/`. Released as a wheel on [GitHub Releases](https://github.com/AgentWatchOrg/AgentWatch/releases).
+Source: `lib/`. Not versioned: everything installs whatever is on `main`.
 
 | Package | Contents |
 |---|---|
-| `agent_watch.api` | Core logic. Returns models, raises exceptions, never prints. Callable from the CLI or a REST API. |
+| `agent_watch.api` | Core logic. Returns models, raises exceptions, never prints. Callable from the CLI or the REST API. |
 | `agent_watch.cli` | `agent-watch` Click commands that call `api` and print results. |
+| `agent_watch.rest_api` | FastAPI app that calls `api`; needs the `rest-api` extra. See [Web server](web-server.md). |
 
 ## Install
-Latest release:
+Into its own environment, from main:
 ```bash
-gh release download --repo AgentWatchOrg/AgentWatch --pattern "agent_watch-*.whl" --dir agent-watch-release
-pip install agent-watch-release/*.whl
+python3.12 -m venv ~/.venvs/agent-watch
+~/.venvs/agent-watch/bin/pip install "git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
+```
+The `pull-request-review review` command also needs the Claude Agent SDK:
+```bash
+~/.venvs/agent-watch/bin/pip install "agent-watch[pull-request-review] @ git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
 ```
 For development:
 ```bash
@@ -23,6 +28,11 @@ pip install -e "lib[development]"
 |---|---|
 | `agent-watch project-board synchronize-statuses` | Adds open issues to Backlog; sets or clears each card's sprint week from its status; marks closed issues Done |
 | `agent-watch project-board roll-over-sprint` | Moves unfinished cards into the current sprint, adds future weeks, posts the Sprint Log summary |
+| `agent-watch pull-request-review check-ticket-reference --pull-request-number <n>` | Fails unless the PR description has `Closes #N` or `Part of #N` for an existing issue. Runs on every PR as the required check `check_pull_request_references_a_ticket`. |
+| `agent-watch pull-request-review bypass-merge-requirements --pull-request-number <n>` | Approves the PR when a repository admin added the `bypass-merge-requirements` label; otherwise removes the label and dismisses that approval. See [Merging pull requests](merging-pull-requests.md). |
+| `agent-watch pull-request-review check-merge-requirements-bypass --pull-request-number <n>` | Exits 0 when a repository admin added the `bypass-merge-requirements` label, 1 otherwise. The required checks use it to pass without running. |
+
+Every command takes `agent-watch --log-level DEBUG|INFO|WARNING|ERROR` (env `AGENT_WATCH_LOG_LEVEL`, default `INFO`). Output goes to stderr through the logger.
 
 `project-board` options:
 
@@ -52,9 +62,5 @@ cd lib && mypy src tests && pytest
 ```
 `run_type_checks_and_unit_tests` runs on every PR and must pass to merge.
 
-## Release
-1. Change code under `lib/src/`, with tests.
-2. Bump `lib/VERSION` (semver) in the same PR.
-3. Merge to main. `release-agent-watch-library.yml` tests, builds, and publishes release `v<VERSION>`.
-
-Workflows install the latest release on every run.
+## Changes reaching workflows
+Workflows install from `main` on every run, so a merged change is live on the next run. To undo one, revert it on `main`.

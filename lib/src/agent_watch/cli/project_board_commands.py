@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -8,6 +9,8 @@ from agent_watch.api.project_calendar import today_in_project_time_zone
 from agent_watch.api.project_board.project_board_client import ProjectBoardClient
 from agent_watch.api.project_board.roll_over_sprint import SprintRolloverResult, roll_over_sprint
 from agent_watch.api.project_board.synchronize_statuses import BoardChange, synchronize_statuses
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -44,8 +47,8 @@ def synchronize_statuses_command(settings: ProjectBoardCommandSettings) -> None:
     changes: list[BoardChange] = synchronize_statuses(settings.client, settings.today, settings.is_dry_run)
     for change in changes:
         sprint_week_suffix: str = f" ({change.sprint_week.title})" if change.sprint_week else ""
-        click.echo(f"{change.kind}: {change.target_title}{sprint_week_suffix}")
-    click.echo(f"{len(changes)} change(s){' planned (dry run)' if settings.is_dry_run else ' applied'}")
+        logger.info(f"{change.kind}: {change.target_title}{sprint_week_suffix}")
+    logger.info(f"{len(changes)} change(s){' planned (dry run)' if settings.is_dry_run else ' applied'}")
 
 
 @project_board.command("roll-over-sprint",
@@ -58,12 +61,12 @@ def roll_over_sprint_command(settings: ProjectBoardCommandSettings, minimum_futu
                              should_post_summary: bool) -> None:
     result: SprintRolloverResult = roll_over_sprint(
         settings.client, settings.today, minimum_future_weeks, should_post_summary, settings.is_dry_run)
-    click.echo(f"Target week: {result.plan.target_week.title}{' (dry run)' if settings.is_dry_run else ''}")
+    logger.info(f"Target week: {result.plan.target_week.title}{' (dry run)' if settings.is_dry_run else ''}")
     for item in result.plan.carried_over_items:
-        click.echo(f"Carry over: {item.title} ({item.week_title} -> {result.plan.target_week.title})")
+        logger.info(f"Carry over: {item.title} ({item.week_title} -> {result.plan.target_week.title})")
     for new_week in result.plan.new_weeks:
-        click.echo(f"Add week: {new_week.title}")
+        logger.info(f"Add week: {new_week.title}")
     if result.summary:
-        click.echo(f"\n{result.summary}")
+        logger.info("%s", result.summary)
     if result.sprint_log_issue_number:
-        click.echo(f"\nPosted on {settings.client.repository}#{result.sprint_log_issue_number}")
+        logger.info(f"Posted on {settings.client.repository}#{result.sprint_log_issue_number}")

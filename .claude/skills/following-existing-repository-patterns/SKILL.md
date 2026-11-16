@@ -26,16 +26,20 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Thing | Pattern |
 |---|---|
 | Python code | `lib/src/agent_watch/api/<area>/` for logic, `lib/src/agent_watch/cli/` for Click commands; see `structuring-library-code` |
-| REST API | FastAPI in `web-server/src/agent_watch_web_server/`, one router per area calling `agent_watch.api`; Swagger at `/docs` |
+| REST API | FastAPI in `lib/src/agent_watch/rest_api/` behind the `rest-api` extra, one router per area calling `agent_watch.api`; Swagger at `/docs` |
 | Infrastructure | CloudFormation in `infrastructure/<service>/`; deploys through SSM from GitHub Actions with an OIDC role, no SSH keys or AWS secrets in GitHub |
 | GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
+| Logging | Module logger from `logging.getLogger(__name__)`; setup only in `agent_watch/logging_configuration.py`; never `print` or `click.echo` |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
 | Tests | pytest in `lib/tests/`, folders mirroring `src/agent_watch/`; shared fakes in `lib/tests/doubles/`; required check `run_type_checks_and_unit_tests` |
-| Library releases | Bump `lib/VERSION` on main; `release-agent-watch-library.yml` tests and publishes a GitHub release with the wheel |
-| Workflows | Install the latest `agent-watch` release, then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
+| Heavy dependencies | An optional extra named after the area (`agent-watch[pull-request-review]`); api code depends on a Protocol, and the one command that needs the real client imports it inside the command |
+| Library versions | None. `lib` is unversioned; never add a version file, release workflow, or version bump |
+| Workflows | Install `agent-watch` from main with `pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"`, never from a pull request's checkout, so PR code never runs with secrets or grades itself; then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |
 | Issues and PRs | `creating-github-issues`, `writing-pull-request-descriptions`, `splitting-large-pull-requests-into-stacks` |
+| Claude agents | Claude Agent SDK with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` from repository secrets, wrapped in an `api` client class; read-only tools, `max_turns` cap, structured output parsed into models; skills from `main` |
+| Pull request review | `review-pull-requests-with-claude.yml` runs `agent-watch pull-request-review review`; rules in `reviewing-pull-requests-as-senior-staff-engineer` |
 
 When a new pattern is accepted, add it to this table in the same PR.
 

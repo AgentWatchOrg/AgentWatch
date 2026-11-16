@@ -8,10 +8,10 @@ description: Use whenever opening or editing a pull request for AgentWatch. Writ
 As short as possible. Too sparse is fine; too long is not.
 
 ## Size
-Over 500 changed lines: stop and split it using the `splitting-large-pull-requests-into-stacks` skill.
+Over 500 changed lines: stop and split it using the `splitting-large-pull-requests-into-stacks` skill. A stacked PR's description lists every PR in the stack, as that skill shows.
 
 ## Ticket link (required)
-Every PR closes a ticket. Find the number from the branch name, commits, or the conversation. If none exists, create one with the `creating-github-issues` skill first. Never open a PR without `Closes #N`.
+Every PR closes a ticket. Find the number from the branch name, commits, or the conversation. If none exists, create one with the `creating-github-issues` skill first. Never open a PR without `Closes #N`. The required check `check_pull_request_references_a_ticket` fails otherwise; it accepts `Closes`, `Fixes`, `Resolves`, or `Part of` followed by `#N` for an existing issue.
 
 ## Title
 Under ~60 characters, imperative, no ticket number, no prefix: "Add HEC export retry".
