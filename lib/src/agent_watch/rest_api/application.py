@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from agent_watch_web_server.routers.health_router import health_router
+from agent_watch.rest_api.routers.health_router import health_router
 
 
 def create_application() -> FastAPI:

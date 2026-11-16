@@ -1,6 +1,6 @@
 # Web server
 
-FastAPI server in `web-server/`, calling `agent_watch.api`. Not versioned: every merge to main that passes its tests is deployed.
+FastAPI app in `lib/src/agent_watch/rest_api/` (package `agent_watch.rest_api`, extra `rest-api`), calling `agent_watch.api`. Every merge to main that passes `Test agent-watch library` is deployed.
 
 - API: http://52.60.176.146
 - Swagger: [http://52.60.176.146/docs](http://52.60.176.146/docs)
@@ -13,16 +13,16 @@ FastAPI server in `web-server/`, calling `agent_watch.api`. Not versioned: every
 
 ## Run locally
 ```bash
-pip install -e lib -e "web-server[development]"
-uvicorn agent_watch_web_server.application:application --reload
+pip install -e "lib[development]"
+uvicorn agent_watch.rest_api.application:application --reload
 ```
 Swagger at http://127.0.0.1:8000/docs.
 
 ## Test
 ```bash
-cd web-server && mypy src tests && pytest
+cd lib && mypy src tests && pytest
 ```
-`run_web_server_type_checks_and_unit_tests` runs on every PR and must pass to merge.
+The REST API tests are part of `run_type_checks_and_unit_tests`, which runs on every PR and must pass to merge.
 
 ## Hosting
 | Piece | Value |
@@ -34,7 +34,7 @@ cd web-server && mypy src tests && pytest
 | Service | systemd `agent-watch-web-server`, uvicorn on port 80, code in `/opt/agent-watch` |
 
 ## Deploy
-After `Test agent-watch web server` passes on main, `deploy-agent-watch-web-server.yml` assumes the stack's GitHub OIDC role and runs `infrastructure/web-server/deploy_web_server.sh <commit>` on the instance through SSM: pull, reinstall `lib` and `web-server`, restart. Repository variables `WEB_SERVER_*` hold the role, instance, region, and URL.
+After `Test agent-watch library` passes on main, `deploy-agent-watch-web-server.yml` assumes the stack's GitHub OIDC role and, through SSM, resets the instance's checkout to that commit and runs its `infrastructure/web-server/deploy_web_server.sh`: reinstall `lib[rest-api]`, install the systemd unit, restart. Repository variables `WEB_SERVER_*` hold the role, instance, region, and URL.
 
 Redeploy without a code change:
 ```bash
