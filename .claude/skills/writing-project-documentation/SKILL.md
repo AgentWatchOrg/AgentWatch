@@ -46,7 +46,7 @@ When recording a decision (for example a spike's outcome), use exactly:
 
 ## Check
 ```bash
-pip install -r documentation-site-requirements.txt
+pip install -r documentation/requirements.txt
 mkdocs build --strict   # must pass; CI runs the same
 mkdocs serve            # preview at http://127.0.0.1:8000
 ```
