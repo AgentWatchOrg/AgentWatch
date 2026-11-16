@@ -59,7 +59,7 @@ jobs:
           python-version: "3.12"
       - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
         name: Install agent-watch from main
-        run: pip install "agent-watch[pull-request-review] @ git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
+        run: pip install "agent-watch[claude-agent] @ git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
       - if: steps.check_claude_credential.outputs.has_claude_credential == 'true' && vars.ROBO_REVIEWER_APP_ID != ''
         name: Sign in as RoboReviewer
         id: create_robo_reviewer_token

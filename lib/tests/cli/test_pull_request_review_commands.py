@@ -106,4 +106,4 @@ def test_review_explains_how_to_install_the_sdk_when_it_is_missing(cli_runner: C
                                        env={"GITHUB_TOKEN": "token", "PULL_REQUEST_NUMBER": "30"})
 
     assert result.exit_code == 1
-    assert "pip install 'agent-watch[pull-request-review]'" in result.output
+    assert "pip install 'agent-watch[claude-agent]'" in result.output

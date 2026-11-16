@@ -32,7 +32,8 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Logging | Module logger from `logging.getLogger(__name__)`; setup only in `agent_watch/logging_configuration.py`; never `print` or `click.echo` |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
 | Tests | pytest in `lib/tests/`, folders mirroring `src/agent_watch/`; shared fakes in `lib/tests/doubles/`; required check `run_type_checks_and_unit_tests` |
-| Heavy dependencies | An optional extra named after the area (`agent-watch[pull-request-review]`); api code depends on a Protocol, and the one command that needs the real client imports it inside the command |
+| Calling Claude | `ClaudeAgentClient` in `api/claude_agent_client.py`, configured with a `ClaudeAgentConfiguration`; never import `claude_agent_sdk` anywhere else. Area code builds the prompt and parses the result |
+| Heavy dependencies | An optional extra (`agent-watch[claude-agent]`); api code depends on a Protocol, and the one command that needs the real client imports it inside the command |
 | Library versions | None. `lib` is unversioned; never add a version file, release workflow, or version bump |
 | Workflows | Install `agent-watch` from main with `pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"`, never from a pull request's checkout, so PR code never runs with secrets or grades itself; then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
