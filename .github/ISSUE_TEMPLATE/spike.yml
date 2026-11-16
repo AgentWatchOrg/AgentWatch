@@ -1,0 +1,22 @@
+name: Spike
+description: Time-boxed research to answer a question or make a decision
+labels: ["spike"]
+projects: ["AgentWatchOrg/1"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to answer
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options to compare
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: What gets produced (decision write-up, prototype, benchmark) and where it lives.
+    validations:
+      required: true

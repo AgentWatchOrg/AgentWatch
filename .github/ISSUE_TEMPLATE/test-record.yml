@@ -1,0 +1,52 @@
+name: Test record
+description: Evidence for a validation test (roadmap section 15.4)
+labels: ["test"]
+projects: ["AgentWatchOrg/1"]
+body:
+  - type: input
+    id: requirement
+    attributes:
+      label: Requirement tested
+      placeholder: "e.g. D1 capture reliability >= 95% of 100 activities"
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Git commit / software version
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment and configuration
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input / workload
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed result and measurements
+    validations:
+      required: true
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Outcome
+      options: ["Pass", "Fail", "Inconclusive"]
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence links
+      description: Logs, exported records, screenshots, Splunk searches.
