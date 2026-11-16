@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from httpx import Response
+from httpx2 import Response
 
 
 def test_swagger_page_and_openapi_schema_are_served(api_client: TestClient) -> None:
