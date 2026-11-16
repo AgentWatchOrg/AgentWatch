@@ -1,6 +1,25 @@
-# Pull request reviewer
+# RoboReviewer
 
-A Claude agent reviews every pull request into `main` at senior staff level and posts its findings as review comments. It runs on Claude Opus 5.5 through the Claude Agent SDK, from `agent-watch pull-request-review review`.
+RoboReviewer, a Claude agent, reviews every pull request into `main` at senior staff level and posts its findings as review comments. It runs on Claude Opus 5.5 through the Claude Agent SDK, from `agent-watch pull-request-review review`.
+
+## Identity
+RoboReviewer posts as its own GitHub App, with the avatar in `assets/robo-reviewer/robo-reviewer-avatar.png`. Until the app is configured, it posts as `github-actions`.
+
+One-time setup by an org owner:
+1. **AgentWatchOrg → Settings → Developer settings → GitHub Apps → New GitHub App.**
+2. Name `AgentWatch RoboReviewer` (app names are unique across GitHub). Homepage: the repository URL. Uncheck **Webhook → Active**.
+3. Repository permissions: **Contents** read, **Issues** read and write, **Pull requests** read and write. Metadata read is added automatically.
+4. **Where can this app be installed:** only this account. Create it.
+5. On the app page, upload `robo-reviewer-avatar.png` under **Display information**, then **Generate a private key** (downloads a `.pem`).
+6. **Install App** → AgentWatchOrg → only `AgentWatch`.
+7. Store the app ID and key:
+   ```bash
+   gh variable set ROBO_REVIEWER_APP_ID -R AgentWatchOrg/AgentWatch --body <app id>
+   gh secret set ROBO_REVIEWER_PRIVATE_KEY -R AgentWatchOrg/AgentWatch < path/to/key.pem
+   ```
+   Delete the `.pem` afterwards.
+
+A summary comment already posted by `github-actions` can't be edited by the app; delete it once and RoboReviewer posts a new one.
 
 ## When it runs
 `review-pull-requests-with-claude.yml` runs on `opened`, `reopened`, `ready_for_review`, and every push (`synchronize`) to a pull request whose base is `main`. Drafts are skipped until marked ready. A newer push cancels a review still running for the same pull request.

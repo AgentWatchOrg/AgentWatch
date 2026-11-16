@@ -1,4 +1,4 @@
-name: Review pull requests with Claude
+name: Review pull requests with RoboReviewer
 
 on:
   pull_request:
@@ -60,10 +60,17 @@ jobs:
       - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
         name: Install agent-watch from main
         run: pip install "agent-watch[pull-request-review] @ git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"
+      - if: steps.check_claude_credential.outputs.has_claude_credential == 'true' && vars.ROBO_REVIEWER_APP_ID != ''
+        name: Sign in as RoboReviewer
+        id: create_robo_reviewer_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.ROBO_REVIEWER_APP_ID }}
+          private-key: ${{ secrets.ROBO_REVIEWER_PRIVATE_KEY }}
       - if: steps.check_claude_credential.outputs.has_claude_credential == 'true'
         name: Review the pull request
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.create_robo_reviewer_token.outputs.token || github.token }}
           PULL_REQUEST_REVIEWER_MODEL: ${{ vars.PULL_REQUEST_REVIEWER_MODEL || 'claude-opus-5-5' }}
           IS_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.is_dry_run || 'false' }}
         run: agent-watch pull-request-review review
