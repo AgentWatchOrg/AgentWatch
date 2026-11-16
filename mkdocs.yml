@@ -4,6 +4,7 @@ repo_url: https://github.com/AgentWatchOrg/AgentWatch
 docs_dir: documentation
 site_dir: built-documentation-site
 edit_uri: edit/main/documentation/
+exclude_docs: requirements.txt
 
 theme:
   name: material
