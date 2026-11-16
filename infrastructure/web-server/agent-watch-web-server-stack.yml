@@ -11,6 +11,10 @@ Parameters:
   GitHubRepository:
     Type: String
     Default: AgentWatchOrg/AgentWatch
+  GitHubImmutableRepository:
+    Type: String
+    Default: AgentWatchOrg@357137988/AgentWatch@1406681981
+    Description: owner@id/name@id, from `gh api repos/<owner>/<name>/actions/oidc/customization/sub`.
 
 Resources:
   WebServerSecurityGroup:
@@ -98,7 +102,9 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:ref:refs/heads/main
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubRepository}:ref:refs/heads/main
+                  - !Sub repo:${GitHubImmutableRepository}:ref:refs/heads/main
       Policies:
         - PolicyName: DeployWebServerThroughSsm
           PolicyDocument:
