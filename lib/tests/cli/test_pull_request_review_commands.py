@@ -6,7 +6,8 @@ from click.testing import CliRunner, Result
 from doubles.pull_request_review_test_doubles import ReviewFindingFactory
 
 from agent_watch.api.pull_request_review.models import (
-    PullRequest, PullRequestReviewPlan, PullRequestReviewResult, ReviewAgentRun, TicketReferenceCheck)
+    MergeRequirementsBypassChange, MergeRequirementsBypassPlan, PullRequest, PullRequestReviewPlan,
+    PullRequestReviewResult, ReviewAgentRun, TicketReferenceCheck)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
 from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
 from agent_watch.api.pull_request_review.review_pull_request import plan_pull_request_review
@@ -107,3 +108,44 @@ def test_review_explains_how_to_install_the_sdk_when_it_is_missing(cli_runner: C
 
     assert result.exit_code == 1
     assert "pip install 'agent-watch[pull-request-review]'" in result.output
+
+
+@pytest.mark.parametrize(("plan", "expected_exit_code", "expected_message"), [
+    (MergeRequirementsBypassPlan(30, "joshuajipp", True, [], []), 0, "#30: bypassed by admin @joshuajipp"),
+    (MergeRequirementsBypassPlan(30, "Ernesto-B", False, [], []), 1,
+     "#30: ignoring label from @Ernesto-B, who is not an admin"),
+    (MergeRequirementsBypassPlan(30, None, False, [], []), 1, "#30: no admin bypass label"),
+], ids=["admin label", "non-admin label", "no label"])
+def test_check_merge_requirements_bypass_sets_the_exit_code(
+        cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, plan: MergeRequirementsBypassPlan,
+        expected_exit_code: int, expected_message: str) -> None:
+    def fake_load_plan(client: PullRequestClient, pull_request_number: int) -> MergeRequirementsBypassPlan:
+        return plan
+
+    monkeypatch.setattr(pull_request_review_commands, "load_merge_requirements_bypass_plan", fake_load_plan)
+
+    result: Result = cli_runner.invoke(agent_watch, ["pull-request-review", "check-merge-requirements-bypass"],
+                                        env={"GITHUB_TOKEN": "token", "PULL_REQUEST_NUMBER": "30"})
+
+    assert result.exit_code == expected_exit_code
+    assert expected_message in result.output
+
+
+def test_bypass_merge_requirements_logs_planned_changes(cli_runner: CliRunner,
+                                                        monkeypatch: pytest.MonkeyPatch) -> None:
+    received_arguments: list[tuple[int, bool]] = []
+
+    def fake_bypass_merge_requirements(client: PullRequestClient, pull_request_number: int,
+                                       is_dry_run: bool) -> MergeRequirementsBypassPlan:
+        received_arguments.append((pull_request_number, is_dry_run))
+        return MergeRequirementsBypassPlan(30, "joshuajipp", True, [MergeRequirementsBypassChange.APPROVE], [])
+
+    monkeypatch.setattr(pull_request_review_commands, "bypass_merge_requirements", fake_bypass_merge_requirements)
+
+    result: Result = cli_runner.invoke(agent_watch, ["pull-request-review", "bypass-merge-requirements"],
+                                        env={"GITHUB_TOKEN": "token", "PULL_REQUEST_NUMBER": "30",
+                                             "IS_DRY_RUN": "true"})
+
+    assert result.exit_code == 0, result.output
+    assert received_arguments == [(30, True)]
+    assert "approve (dry run)" in result.output
