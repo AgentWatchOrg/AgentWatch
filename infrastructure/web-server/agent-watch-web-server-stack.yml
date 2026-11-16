@@ -4,7 +4,7 @@ Description: AgentWatch web server on EC2, deployed from GitHub Actions through 
 Parameters:
   InstanceType:
     Type: String
-    Default: t4g.micro
+    Default: t4g.nano
   ImageId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
@@ -64,6 +64,12 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           set -euxo pipefail
+          # t4g.nano has 512 MB of memory; dnf is killed without swap.
+          dd if=/dev/zero of=/swapfile bs=1M count=1024
+          chmod 600 /swapfile
+          mkswap /swapfile
+          swapon /swapfile
+          echo "/swapfile none swap defaults 0 0" >> /etc/fstab
           dnf install -y git python3.12
           useradd --system --no-create-home agentwatch
           git clone https://github.com/${GitHubRepository}.git /opt/agent-watch
