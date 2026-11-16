@@ -37,7 +37,7 @@ def review_command(github_token: str, repository: str, pull_request_number: int,
         from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
     except ImportError as error:
         raise click.ClickException(
-            "The review command needs the Claude Agent SDK: pip install 'agent-watch[pull-request-review]'") from error
+            "The review command needs the Claude Agent SDK: pip install 'agent-watch[claude-agent]'") from error
     result: PullRequestReviewResult = review_pull_request(
         PullRequestClient(GitHubClient(github_token), repository),
         ClaudeReviewAgentClient(model, maximum_agent_turns, repository_directory.resolve()),

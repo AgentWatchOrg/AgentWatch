@@ -16,7 +16,7 @@ python3.12 -m venv ~/.venvs/agent-watch
 ```
 The `pull-request-review review` command also needs the Claude Agent SDK:
 ```bash
-~/.venvs/agent-watch/bin/pip install "agent-watch[pull-request-review] @ git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
+~/.venvs/agent-watch/bin/pip install "agent-watch[claude-agent] @ git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
 ```
 For development:
 ```bash
@@ -53,6 +53,29 @@ from agent_watch.api.project_board.synchronize_statuses import BoardChange, sync
 client: ProjectBoardClient = ProjectBoardClient(GitHubClient(token), "AgentWatchOrg", 1, "AgentWatchOrg/AgentWatch")
 changes: list[BoardChange] = synchronize_statuses(client, date.today(), is_dry_run=True)
 ```
+
+## Calling Claude
+Every Claude call goes through `ClaudeAgentClient` in `agent_watch.api.claude_agent_client`. Install the `claude-agent` extra to use it.
+
+```python
+from pathlib import Path
+from agent_watch.api.claude_agent_client import ClaudeAgentClient, ClaudeAgentConfiguration, ClaudeAgentResult
+
+agent_client: ClaudeAgentClient = ClaudeAgentClient(ClaudeAgentConfiguration(
+    model="claude-opus-5-5", maximum_turns=40, working_directory=Path("."),
+    system_prompt_appendix="You triage AgentWatch detections.",
+    output_schema={"type": "object", "properties": {"verdict": {"type": "string"}}, "required": ["verdict"]}))
+result: ClaudeAgentResult = agent_client.run("Triage detection 17.")
+```
+
+| Setting | Default |
+|---|---|
+| `allowed_tools` | Read-only repository tools: `Read`, `Grep`, `Glob`, `git diff/log/show/blame` |
+| `blocked_tools` | `Write`, `Edit`, `NotebookEdit`, `WebFetch`, `WebSearch` |
+| `hidden_environment_variables` | `GITHUB_TOKEN` and `GH_TOKEN` blanked so the agent can't use them |
+| Skills | Project skills in `.claude/skills/` are loaded |
+
+`run` returns structured output (when `output_schema` is set), the final text, turn count, and cost, and raises `ClaudeAgentError` if the agent fails. Credentials come from `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`.
 
 ## Test
 ```bash

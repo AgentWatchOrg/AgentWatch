@@ -1,9 +1,9 @@
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
 import pytest
-from claude_agent_sdk import ClaudeAgentOptions, Message, ResultMessage, SystemMessage
+from claude_agent_sdk import ClaudeAgentOptions, Message, SystemMessage
+from doubles.claude_agent_test_doubles import ScriptedQuery, build_result_message
 from doubles.pull_request_review_test_doubles import ExistingReviewThreadFactory
 
 from agent_watch.api.pull_request_review.models import (
@@ -12,30 +12,12 @@ from agent_watch.api.pull_request_review.review_agent_client import (
     REVIEWER_SKILL_NAME, ClaudeReviewAgentClient, build_review_prompt, parse_review_findings)
 
 
-class ScriptedQuery:
-    def __init__(self, messages: list[Message]) -> None:
-        self.messages: list[Message] = messages
-        self.received_prompts: list[str] = []
-        self.received_options: list[ClaudeAgentOptions] = []
-
-    async def __call__(self, *, prompt: str, options: ClaudeAgentOptions) -> AsyncIterator[Message]:
-        self.received_prompts.append(prompt)
-        self.received_options.append(options)
-        for message in self.messages:
-            yield message
-
-
 @pytest.fixture
 def finding_output() -> dict[str, Any]:
     return {"findings": [{
         "path": "lib/a.py", "start_line": 14, "end_line": 12, "severity": "critical", "category": "security",
         "title": "Token printed", "explanation": "The token is echoed.", "failure_scenario": "Logs leak it.",
         "suggested_fix": "Mask it.", "violated_skill_name": ""}]}
-
-
-def build_result_message(structured_output: Any, is_error: bool = False, subtype: str = "success") -> ResultMessage:
-    return ResultMessage(subtype=subtype, duration_ms=1, duration_api_ms=1, is_error=is_error, num_turns=37,
-                         session_id="session", total_cost_usd=2.25, structured_output=structured_output)
 
 
 def test_agent_options_cap_turns_load_project_skills_and_stay_read_only() -> None:
