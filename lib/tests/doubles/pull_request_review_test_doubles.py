@@ -4,8 +4,8 @@ from typing import Protocol
 from doubles.github_test_doubles import ScriptedGitHubClient
 
 from agent_watch.api.pull_request_review.models import (
-    ExistingReviewThread, PlannedReviewComment, PullRequest, ReviewAgentRun, ReviewFinding, ReviewFindingCategory,
-    ReviewSeverity)
+    ExistingReviewThread, PlannedReviewComment, PullRequest, ReferencedIssue, ReviewAgentRun, ReviewFinding,
+    ReviewFindingCategory, ReviewSeverity)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
 from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
 
@@ -26,14 +26,20 @@ class ExistingReviewThreadFactory(Protocol):
 
 
 class FakePullRequestClient(PullRequestClient):
-    def __init__(self, pull_request: PullRequest, existing_threads: list[ExistingReviewThread]) -> None:
+    def __init__(self, pull_request: PullRequest, existing_threads: list[ExistingReviewThread],
+                 referenced_issues: list[ReferencedIssue] | None = None) -> None:
         super().__init__(ScriptedGitHubClient(), "AgentWatchOrg/AgentWatch")
         self.pull_request: PullRequest = pull_request
         self.existing_threads: list[ExistingReviewThread] = existing_threads
+        self.referenced_issues_by_number: dict[int, ReferencedIssue] = {
+            issue.number: issue for issue in referenced_issues or []}
         self.recorded_calls: list[tuple[str, ...]] = []
 
     def load_pull_request(self, pull_request_number: int) -> PullRequest:
         return self.pull_request
+
+    def find_issue(self, issue_number: int) -> ReferencedIssue | None:
+        return self.referenced_issues_by_number.get(issue_number)
 
     def load_review_threads(self, pull_request_number: int) -> list[ExistingReviewThread]:
         return self.existing_threads

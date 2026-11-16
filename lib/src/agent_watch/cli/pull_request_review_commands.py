@@ -3,8 +3,9 @@ from pathlib import Path
 import click
 
 from agent_watch.api.github_client import GitHubClient
+from agent_watch.api.pull_request_review.check_ticket_reference import check_ticket_reference
 from agent_watch.api.pull_request_review.models import (
-    DEFAULT_REVIEW_MODEL, MAXIMUM_AGENT_TURNS, PlannedReviewComment, PullRequestReviewResult)
+    DEFAULT_REVIEW_MODEL, MAXIMUM_AGENT_TURNS, PlannedReviewComment, PullRequestReviewResult, TicketReferenceCheck)
 from agent_watch.api.pull_request_review.pull_request_client import PullRequestClient
 from agent_watch.api.pull_request_review.review_agent_client import ClaudeReviewAgentClient
 from agent_watch.api.pull_request_review.review_pull_request import review_pull_request
@@ -43,6 +44,24 @@ def review_command(github_token: str, repository: str, pull_request_number: int,
                f"{' (dry run)' if is_dry_run else ''}")
     if result.summary_comment_url:
         click.echo(f"Summary: {result.summary_comment_url}")
+
+@pull_request_review.command("check-ticket-reference",
+                             help="Fail unless the description has 'Closes #N' or 'Part of #N' for an existing issue.")
+@click.option("--github-token", envvar="GITHUB_TOKEN", required=True, help="Env: GITHUB_TOKEN")
+@click.option("--repository", envvar="GITHUB_REPOSITORY", default="AgentWatchOrg/AgentWatch", show_default=True)
+@click.option("--pull-request-number", envvar="PULL_REQUEST_NUMBER", type=int, required=True)
+def check_ticket_reference_command(github_token: str, repository: str, pull_request_number: int) -> None:
+    result: TicketReferenceCheck = check_ticket_reference(
+        PullRequestClient(GitHubClient(github_token), repository), pull_request_number)
+    for missing_issue_number in result.missing_issue_numbers:
+        click.echo(f"#{missing_issue_number} does not exist in {repository}.")
+    for pull_request_reference in result.pull_request_numbers_referenced_as_tickets:
+        click.echo(f"#{pull_request_reference} is a pull request, not a ticket.")
+    if not result.referenced_issue_numbers:
+        click.echo("No ticket referenced. Add 'Closes #N' (or 'Part of #N' for a stacked PR) to the description.")
+    if not result.is_passing:
+        raise SystemExit(1)
+    click.echo(f"References {', '.join(f'#{number}' for number in result.referenced_issue_numbers)}.")
 
 
 def format_planned_comment(comment: PlannedReviewComment) -> str:

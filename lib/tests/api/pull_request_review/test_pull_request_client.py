@@ -1,21 +1,19 @@
+import urllib.error
+from email.message import Message
+
 import pytest
 from doubles.github_test_doubles import ScriptedGitHubClient
 from doubles.pull_request_review_test_doubles import ReviewFindingFactory
 
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.pull_request_review.models import (
-    REVIEW_SUMMARY_MARKER, CommentPlacement, ExistingReviewThread, PlannedReviewComment, PullRequest)
+    REVIEW_SUMMARY_MARKER, CommentPlacement, ExistingReviewThread, PlannedReviewComment, PullRequest, ReferencedIssue)
 from agent_watch.api.pull_request_review.pull_request_client import (
     PullRequestClient, build_line_comment_payload, parse_commentable_line_numbers, parse_review_thread)
 
 TWO_HUNK_PATCH: str = "\n".join([
     "@@ -1,3 +1,4 @@", " import json", "-import os", "+import pathlib", "+import sys", " ",
     "@@ -20,2 +21,3 @@ def load():", "     return 1", "+    return 2", "\\ No newline at end of file"])
-
-
-@pytest.fixture
-def pull_request_client(github_client: ScriptedGitHubClient) -> PullRequestClient:
-    return PullRequestClient(github_client, "AgentWatchOrg/AgentWatch")
 
 
 @pytest.fixture
@@ -118,3 +116,25 @@ def test_create_or_update_review_summary(github_client: ScriptedGitHubClient, pu
 
     assert comment_url == "https://github.com/comment"
     assert github_client.rest_calls[1] == (expected_method, expected_path, {"body": "new summary"})
+
+
+@pytest.mark.parametrize(("issue_response", "expected_issue"), [
+    ({"number": 12}, ReferencedIssue(number=12, is_pull_request=False)),
+    ({"number": 12, "pull_request": {"url": "https://api.github.com/..."}}, ReferencedIssue(number=12, is_pull_request=True)),
+    (urllib.error.HTTPError("https://api.github.com", 404, "Not Found", Message(), None), None),
+], ids=["issue", "pull request", "missing"])
+def test_find_issue(github_client: ScriptedGitHubClient, pull_request_client: PullRequestClient,
+                    issue_response: object, expected_issue: ReferencedIssue | None) -> None:
+    github_client.rest_responses = [issue_response]
+
+    assert pull_request_client.find_issue(12) == expected_issue
+    assert github_client.rest_calls == [("GET", "/repos/AgentWatchOrg/AgentWatch/issues/12", None)]
+
+
+def test_find_issue_raises_on_other_http_errors(github_client: ScriptedGitHubClient,
+                                                pull_request_client: PullRequestClient) -> None:
+    github_client.rest_responses = [urllib.error.HTTPError("https://api.github.com", 500, "Error", Message(), None)]
+
+    with pytest.raises(urllib.error.HTTPError):
+        pull_request_client.find_issue(12)
+

@@ -17,4 +17,7 @@ class ScriptedGitHubClient(GitHubClient):
 
     def request(self, method: str, path: str, body: JsonObject | None = None) -> Any:
         self.rest_calls.append((method, path, body))
-        return self.rest_responses.pop(0) if self.rest_responses else None
+        next_response: Any = self.rest_responses.pop(0) if self.rest_responses else None
+        if isinstance(next_response, Exception):
+            raise next_response
+        return next_response

@@ -23,6 +23,7 @@ pip install -e "lib[development]"
 |---|---|
 | `agent-watch project-board synchronize-statuses` | Adds open issues to Backlog; sets or clears each card's sprint week from its status; marks closed issues Done |
 | `agent-watch project-board roll-over-sprint` | Moves unfinished cards into the current sprint, adds future weeks, posts the Sprint Log summary |
+| `agent-watch pull-request-review check-ticket-reference --pull-request-number <n>` | Fails unless the PR description has `Closes #N` or `Part of #N` for an existing issue. Runs on every PR as the required check `check_pull_request_references_a_ticket`. |
 
 `project-board` options:
 
