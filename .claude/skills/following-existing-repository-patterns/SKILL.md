@@ -25,10 +25,11 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 ## Current patterns
 | Thing | Pattern |
 |---|---|
-| Automation scripts | Python standard library only, in `.github/scripts/`, typed, pass `mypy --strict` |
-| Project board access | `.github/scripts/project_board_graphql_client.py`; never a second GitHub client |
-| Script configuration | Environment variables named like the constants they load into; `IS_DRY_RUN` supported |
-| Workflows | One job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
+| Tooling and automation | A command group in the `agent-watch` Click CLI (`cli/src/agent_watch_cli/<group>/`), never a standalone script; typed, passes `mypy --strict` |
+| Project board access | `ProjectBoardClient` in `cli/src/agent_watch_cli/project_board/project_board_client.py`; never a second GitHub client |
+| Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
+| CLI releases | Bump `cli/VERSION` on main; `release-agent-watch-cli.yml` publishes a GitHub release with the wheel |
+| Workflows | Install the latest `agent-watch` release, then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |
 | Issues and PRs | `creating-github-issues`, `writing-pull-request-descriptions`, `splitting-large-pull-requests-into-stacks` |

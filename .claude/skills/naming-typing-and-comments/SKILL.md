@@ -10,7 +10,7 @@ Names and types explain everything. Comments are a last resort.
 ## Names
 Applies to every name you create, not just code: variables, functions, classes, files, folders, scripts, workflow files, workflow and job names, environment variables, config keys, labels, branches, and skills.
 - Long enough that a reader knows what it is or does without opening it: `unfinished_project_items`, not `items`; `build-and-deploy-documentation-site.yml`, not `docs.yml`.
-- No abbreviations except `id`, `url`, `api`, `json`, `pr`. Spell out `documentation`, `configuration`, `infrastructure`, `evaluation`, `utilities`, `message`, `temporary`, `request`, `response`.
+- No abbreviations except `id`, `url`, `api`, `json`, `pr`, `cli`. Spell out `documentation`, `configuration`, `infrastructure`, `evaluation`, `utilities`, `message`, `temporary`, `request`, `response`.
 - No vague names: `utils`, `helpers`, `misc`, `common`, `data`, `info`, `manager`, `handler`, `process`, `run`.
 - Booleans read as questions: `is_finished`, `has_next_page`, `should_post_summary`.
 - Environment variables match the constant they load into.
