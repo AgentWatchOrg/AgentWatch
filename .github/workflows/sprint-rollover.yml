@@ -1,0 +1,33 @@
+name: Sprint rollover
+
+# Every Monday: move unfinished cards into the new week, keep a buffer of
+# future weeks, and post a summary on the "Sprint Log" issue.
+on:
+  schedule:
+    # 07:00 UTC Monday = 00:00 Calgary (MST); 01:00 after the March DST change
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print what would change"
+        type: boolean
+        default: true
+
+concurrency:
+  group: sprint-rollover
+
+jobs:
+  rollover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Roll unfinished cards into this week
+        env:
+          # The default GITHUB_TOKEN cannot edit org projects; this secret holds
+          # a token with the `project` and `repo` scopes.
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        run: python .github/scripts/sprint_rollover.py
