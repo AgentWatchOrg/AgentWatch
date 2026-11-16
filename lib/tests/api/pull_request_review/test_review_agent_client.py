@@ -40,7 +40,7 @@ def build_result_message(structured_output: Any, is_error: bool = False, subtype
 
 def test_agent_options_cap_turns_load_project_skills_and_stay_read_only() -> None:
     options: ClaudeAgentOptions = ClaudeReviewAgentClient(
-        "us.anthropic.claude-opus-5-5", MAXIMUM_AGENT_TURNS, Path("/checkout")).build_agent_options()
+        "claude-opus-5-5", MAXIMUM_AGENT_TURNS, Path("/checkout")).build_agent_options()
 
     assert options.max_turns == 150
     assert options.setting_sources == ["project"] and options.skills == "all"

@@ -38,10 +38,10 @@ def test_review_prints_planned_comments_and_totals(cli_runner: CliRunner, monkey
 
     result: Result = cli_runner.invoke(agent_watch, ["pull-request-review", "review"], env={
         "GITHUB_TOKEN": "token", "PULL_REQUEST_NUMBER": "7", "IS_DRY_RUN": "true",
-        "PULL_REQUEST_REVIEWER_MODEL": "us.anthropic.claude-opus-5-5"})
+        "PULL_REQUEST_REVIEWER_MODEL": "claude-opus-5-5"})
 
     assert result.exit_code == 0, result.output
-    assert received_arguments == [(7, True, "us.anthropic.claude-opus-5-5", 150)]
+    assert received_arguments == [(7, True, "claude-opus-5-5", 150)]
     assert "high correctness line: lib/src/agent_watch/api/example.py:10 Off-by-one" in result.output
     assert "1 new finding(s), 0 already raised, 40 agent turn(s) (dry run)" in result.output
 
