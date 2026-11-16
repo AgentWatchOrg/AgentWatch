@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Any
 
-from project_board_test_doubles import WEEK_ONE, WEEK_TWO, make_board
+from doubles.project_board_test_doubles import WEEK_ONE, WEEK_TWO, make_board
 
 from agent_watch.api.github_client import GitHubClient, JsonObject
 from agent_watch.api.project_board.models import NewSprintWeek, OpenIssue, ProjectBoard, ProjectItem

@@ -1,7 +1,7 @@
 from datetime import date
 
 import pytest
-from project_board_test_doubles import WEEK_ONE, WEEK_THREE, WEEK_TWO, make_board, make_item
+from doubles.project_board_test_doubles import WEEK_ONE, WEEK_THREE, WEEK_TWO, make_board, make_item
 
 from agent_watch.api.project_board.models import NoSprintWeekError
 

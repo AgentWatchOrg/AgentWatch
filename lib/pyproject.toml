@@ -24,7 +24,10 @@ packages = ["src/agent_watch"]
 
 [tool.mypy]
 strict = true
+mypy_path = "src:tests"
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+addopts = ["--import-mode=importlib"]

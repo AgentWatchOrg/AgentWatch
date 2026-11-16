@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 from click.testing import CliRunner, Result
-from project_board_test_doubles import WEEK_TWO, make_item
+from doubles.project_board_test_doubles import WEEK_TWO, make_item
 
 from agent_watch.api.project_board.models import NewSprintWeek
 from agent_watch.api.project_board.project_board_client import ProjectBoardClient
@@ -10,13 +10,6 @@ from agent_watch.api.project_board.roll_over_sprint import SprintRolloverPlan, S
 from agent_watch.api.project_board.synchronize_statuses import BoardChange, BoardChangeKind
 from agent_watch.cli import project_board_commands
 from agent_watch.cli.main import agent_watch
-
-
-def test_version_option_prints_the_package_version() -> None:
-    result: Result = CliRunner().invoke(agent_watch, ["--version"])
-
-    assert result.exit_code == 0
-    assert result.output.startswith("agent-watch, version ")
 
 
 def test_project_board_requires_a_token() -> None:

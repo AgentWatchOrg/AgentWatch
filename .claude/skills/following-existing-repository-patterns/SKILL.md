@@ -28,7 +28,7 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Python code | `lib/src/agent_watch/api/<area>/` for logic, `lib/src/agent_watch/cli/` for Click commands; see `structuring-library-code` |
 | GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
-| Tests | pytest in `lib/tests/`, one module per source module; required check `run_type_checks_and_unit_tests` |
+| Tests | pytest in `lib/tests/`, folders mirroring `src/agent_watch/`; shared fakes in `lib/tests/doubles/`; required check `run_type_checks_and_unit_tests` |
 | Library releases | Bump `lib/VERSION` on main; `release-agent-watch-library.yml` tests and publishes a GitHub release with the wheel |
 | Workflows | Install the latest `agent-watch` release, then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |

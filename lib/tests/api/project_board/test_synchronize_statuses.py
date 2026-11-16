@@ -1,6 +1,6 @@
 from datetime import date
 
-from project_board_test_doubles import WEEK_ONE, FakeProjectBoardClient, make_board, make_item
+from doubles.project_board_test_doubles import WEEK_ONE, FakeProjectBoardClient, make_board, make_item
 
 from agent_watch.api.project_board.models import OpenIssue, ProjectItem
 from agent_watch.api.project_board.synchronize_statuses import (

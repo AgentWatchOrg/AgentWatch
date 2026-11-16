@@ -18,7 +18,8 @@ lib/src/agent_watch/
   cli/                    Click entry points only
     main.py               the agent-watch group
     <area>_commands.py    one command group per area
-lib/tests/                one test module per source module
+lib/tests/                mirrors src/agent_watch: tests/api/<area>/test_<module>.py, tests/cli/test_<module>.py
+  doubles/                shared fakes and factories: <area>_test_doubles.py
 ```
 
 ## api
@@ -41,11 +42,11 @@ Every file in this order:
 4. functions
 
 ## Tests
-- Every function and method gets a pytest test in `lib/tests/test_<module>.py`, in the same PR.
+- Every function and method gets a pytest test in the test module at the matching path (`src/agent_watch/api/x/y.py` → `tests/api/x/test_y.py`), in the same PR.
 - Test `plan_*` functions directly with model objects.
 - Test clients with a fake of the client they depend on; never call the real GitHub API.
 - Test commands with `click.testing.CliRunner` and `monkeypatch` on the api function.
-- Shared fakes and factories live in `lib/tests/<area>_test_doubles.py`.
+- Shared fakes and factories live in `lib/tests/doubles/<area>_test_doubles.py`, imported as `doubles.<area>_test_doubles`.
 - Tests follow the same naming, typing, and layout rules as source.
 
 ```bash
