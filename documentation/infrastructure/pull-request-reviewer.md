@@ -5,12 +5,12 @@ RoboReviewer, a Claude agent, reviews every pull request into `main` at senior s
 ## Identity
 RoboReviewer posts as its own GitHub App, with the avatar in `assets/robo-reviewer/robo-reviewer-avatar.png`. Until the app is configured, it posts as `github-actions`.
 
-One-time setup by an org owner:
+Configured: app `agentwatch-roboreviewer` (App ID `5779453`), installed on this repository only. To recreate it, an org owner does:
 1. **AgentWatchOrg → Settings → Developer settings → GitHub Apps → New GitHub App.**
 2. Name `AgentWatch RoboReviewer` (app names are unique across GitHub). Homepage: the repository URL. Uncheck **Webhook → Active**.
 3. Repository permissions: **Contents** read, **Issues** read and write, **Pull requests** read and write. Metadata read is added automatically.
 4. **Where can this app be installed:** only this account. Create it.
-5. On the app page, upload `robo-reviewer-avatar.png` under **Display information**, then **Generate a private key** (downloads a `.pem`).
+5. On the app page, upload `robo-reviewer-avatar.png` under **Display information**. Then **Credentials → Key pairs → New key** (downloads a `.pem`).
 6. **Install App** → AgentWatchOrg → only `AgentWatch`.
 7. Store the app ID and key:
    ```bash
