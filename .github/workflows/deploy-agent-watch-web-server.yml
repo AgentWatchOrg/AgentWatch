@@ -28,7 +28,7 @@ jobs:
       - name: Mirror the server's secrets from GitHub into Parameter Store
         env:
           GITHUB_WEBHOOK_SECRET: ${{ secrets.BOARD_WEBHOOK_SECRET }}
-          PROJECT_BOARD_TOKEN: ${{ secrets.WEB_SERVER_PROJECT_BOARD_TOKEN }}
+          PROJECT_BOARD_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         run: |
           for variable_name in GITHUB_WEBHOOK_SECRET PROJECT_BOARD_TOKEN; do
             secret_value=${!variable_name}
