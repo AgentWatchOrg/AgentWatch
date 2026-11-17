@@ -19,7 +19,7 @@ The server's secrets live only in GitHub repository secrets. Never set them in A
 | `BOARD_WEBHOOK_SECRET` | `GITHUB_WEBHOOK_SECRET` | Secret shared with the org webhook |
 | `WEB_SERVER_PROJECT_BOARD_TOKEN` | `PROJECT_BOARD_TOKEN` | Fine-grained token: organization Projects read and write; AgentWatch repository only, Issues read |
 
-On every deploy, `deploy-agent-watch-web-server.yml` copies each one that is set into SSM Parameter Store (SecureString, `/agent-watch/rest-api/<variable in kebab case>`), and the deploy script writes that path into `/etc/agent-watch/rest-api.env` for the service. The deploy role may only write that path and the instance role may only read it. Parameter Store is a relay, not a second copy to maintain: it is overwritten from GitHub on each deploy.
+On every deploy, `deploy-agent-watch-web-server.yml` mirrors them into SSM Parameter Store: it writes each one that is set and deletes the copy of each one that is not (SecureString, `/agent-watch/rest-api/<variable in kebab case>`), and the deploy script writes that path into `/etc/agent-watch/rest-api.env` for the service. The deploy role may only write that path and the instance role may only read it. Parameter Store is a relay, not a second copy to maintain: it is overwritten from GitHub on each deploy.
 
 Change a secret, then redeploy so the server picks it up:
 ```bash

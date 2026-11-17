@@ -25,18 +25,21 @@ jobs:
         with:
           role-to-assume: ${{ vars.WEB_SERVER_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.WEB_SERVER_AWS_REGION }}
-      - name: Copy the server's secrets from GitHub into Parameter Store
+      - name: Mirror the server's secrets from GitHub into Parameter Store
         env:
           GITHUB_WEBHOOK_SECRET: ${{ secrets.BOARD_WEBHOOK_SECRET }}
           PROJECT_BOARD_TOKEN: ${{ secrets.WEB_SERVER_PROJECT_BOARD_TOKEN }}
         run: |
           for variable_name in GITHUB_WEBHOOK_SECRET PROJECT_BOARD_TOKEN; do
             secret_value=${!variable_name}
-            [[ -n $secret_value ]] || continue
             parameter_name=/agent-watch/rest-api/$(tr '[:upper:]_' '[:lower:]-' <<<"$variable_name")
-            aws ssm put-parameter --name "$parameter_name" --type SecureString --overwrite --value "$secret_value" \
-              --query Version --output text >/dev/null
-            echo "Updated $parameter_name"
+            if [[ -n $secret_value ]]; then
+              aws ssm put-parameter --name "$parameter_name" --type SecureString --overwrite --value "$secret_value" \
+                --query Version --output text >/dev/null
+              echo "Updated $parameter_name"
+            elif aws ssm delete-parameter --name "$parameter_name" 2>/dev/null; then
+              echo "Deleted $parameter_name; its GitHub secret is not set"
+            fi
           done
       - name: Run the deploy script on the instance
         run: |

@@ -127,7 +127,7 @@ Resources:
                 Action: ssm:GetCommandInvocation
                 Resource: "*"
               - Effect: Allow
-                Action: ssm:PutParameter
+                Action: [ssm:PutParameter, ssm:DeleteParameter]
                 Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agent-watch/rest-api/*
               - Effect: Allow
                 Action: kms:Encrypt
