@@ -11,6 +11,21 @@ FastAPI app in `lib/src/agent_watch/rest_api/` (package `agent_watch.rest_api`, 
 |---|---|---|
 | GET | `/health` | `{"status": "ok"}` |
 
+## Secrets
+The deploy script turns every SSM parameter under `/agent-watch/rest-api/` (SecureString, `ca-central-1`) into a line of `/etc/agent-watch/rest-api.env` for the service: `github-webhook-secret` becomes `GITHUB_WEBHOOK_SECRET`. The instance role may read only that path.
+
+| Parameter | Holds |
+|---|---|
+| `/agent-watch/rest-api/github-webhook-secret` | Secret shared with the org webhook |
+| `/agent-watch/rest-api/project-board-token` | Fine-grained token: organization Projects read and write; AgentWatch repository only, Issues read |
+
+Change a secret, then redeploy so the service reads it:
+```bash
+aws ssm put-parameter --region ca-central-1 --type SecureString --overwrite \
+  --name /agent-watch/rest-api/<name> --value "<value>"
+gh workflow run deploy-agent-watch-web-server.yml -R AgentWatchOrg/AgentWatch
+```
+
 ## Run locally
 ```bash
 pip install -e "lib[development]"
