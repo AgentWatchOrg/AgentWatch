@@ -20,7 +20,6 @@ write_environment_file_from_secret_parameters() {
   region=$(curl --silent --header "X-aws-ec2-metadata-token: $instance_metadata_token" \
     http://169.254.169.254/latest/meta-data/placement/region)
   install -d -m 700 "$(dirname "$environment_file")"
-  # Each parameter /agent-watch/rest-api/<name> becomes <NAME> with dashes as underscores.
   aws ssm get-parameters-by-path --region "$region" --path "$secret_parameter_path" --with-decryption \
     --query 'Parameters[].[Name,Value]' --output text \
     | while IFS=$'\t' read -r parameter_name parameter_value; do
