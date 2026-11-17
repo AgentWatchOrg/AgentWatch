@@ -28,7 +28,7 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Python code | `lib/src/agent_watch/api/<area>/` for logic, `lib/src/agent_watch/cli/` for Click commands; see `structuring-library-code` |
 | REST API | FastAPI in `lib/src/agent_watch/rest_api/` behind the `rest-api` extra, one router per area calling `agent_watch.api`; Swagger at `/docs` |
 | Infrastructure | CloudFormation in `infrastructure/<service>/`; deploys through SSM from GitHub Actions with an OIDC role, no SSH keys or AWS secrets in GitHub |
-| Server secrets | SecureString SSM parameters under `/agent-watch/rest-api/`; the deploy script writes them to the service's environment file; the instance role reads only that path; never in GitHub or the repo |
+| Server secrets | GitHub repository secrets only; the deploy workflow copies them into SSM Parameter Store under `/agent-watch/rest-api/`, and the deploy script writes that path into the service's environment file; never set in AWS by hand or committed |
 | Local services | Docker Compose in `infrastructure/<service>/`, with a committed `.env.example` and git-ignored `.env` |
 | GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
 | Logging | Module logger from `logging.getLogger(__name__)`; setup only in `agent_watch/logging_configuration.py`; never `print` or `click.echo` |

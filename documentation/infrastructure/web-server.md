@@ -12,17 +12,18 @@ FastAPI app in `lib/src/agent_watch/rest_api/` (package `agent_watch.rest_api`, 
 | GET | `/health` | `{"status": "ok"}` |
 
 ## Secrets
-The deploy script turns every SSM parameter under `/agent-watch/rest-api/` (SecureString, `ca-central-1`) into a line of `/etc/agent-watch/rest-api.env` for the service: `github-webhook-secret` becomes `GITHUB_WEBHOOK_SECRET`. The instance role may read only that path.
+The server's secrets live only in GitHub repository secrets. Never set them in AWS by hand.
 
-| Parameter | Holds |
-|---|---|
-| `/agent-watch/rest-api/github-webhook-secret` | Secret shared with the org webhook |
-| `/agent-watch/rest-api/project-board-token` | Fine-grained token: organization Projects read and write; AgentWatch repository only, Issues read |
+| Repository secret | Server variable | Holds |
+|---|---|---|
+| `BOARD_WEBHOOK_SECRET` | `GITHUB_WEBHOOK_SECRET` | Secret shared with the org webhook |
+| `WEB_SERVER_PROJECT_BOARD_TOKEN` | `PROJECT_BOARD_TOKEN` | Fine-grained token: organization Projects read and write; AgentWatch repository only, Issues read |
 
-Change a secret, then redeploy so the service reads it:
+On every deploy, `deploy-agent-watch-web-server.yml` copies each one that is set into SSM Parameter Store (SecureString, `/agent-watch/rest-api/<variable in kebab case>`), and the deploy script writes that path into `/etc/agent-watch/rest-api.env` for the service. The deploy role may only write that path and the instance role may only read it. Parameter Store is a relay, not a second copy to maintain: it is overwritten from GitHub on each deploy.
+
+Change a secret, then redeploy so the server picks it up:
 ```bash
-aws ssm put-parameter --region ca-central-1 --type SecureString --overwrite \
-  --name /agent-watch/rest-api/<name> --value "<value>"
+gh secret set WEB_SERVER_PROJECT_BOARD_TOKEN -R AgentWatchOrg/AgentWatch
 gh workflow run deploy-agent-watch-web-server.yml -R AgentWatchOrg/AgentWatch
 ```
 

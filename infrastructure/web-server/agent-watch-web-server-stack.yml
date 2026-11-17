@@ -126,6 +126,15 @@ Resources:
               - Effect: Allow
                 Action: ssm:GetCommandInvocation
                 Resource: "*"
+              - Effect: Allow
+                Action: ssm:PutParameter
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agent-watch/rest-api/*
+              - Effect: Allow
+                Action: kms:Encrypt
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub ssm.${AWS::Region}.amazonaws.com
 
 Outputs:
   WebServerUrl:
