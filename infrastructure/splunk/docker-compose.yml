@@ -1,0 +1,21 @@
+name: agent-watch
+
+services:
+  splunk:
+    image: ${SPLUNK_IMAGE:-splunk/splunk:10.4}
+    platform: linux/amd64
+    environment:
+      SPLUNK_PASSWORD: ${SPLUNK_PASSWORD:?Copy .env.example to .env and set SPLUNK_PASSWORD}
+      SPLUNK_HEC_TOKEN: ${SPLUNK_HEC_TOKEN:?Copy .env.example to .env and set SPLUNK_HEC_TOKEN}
+      SPLUNK_START_ARGS: --accept-license
+      SPLUNK_GENERAL_TERMS: --accept-sgt-current-at-splunk-com
+    ports:
+      - "8000:8000"
+      - "8088:8088"
+    volumes:
+      - splunk-etc:/opt/splunk/etc
+      - splunk-var:/opt/splunk/var
+
+volumes:
+  splunk-etc:
+  splunk-var:
