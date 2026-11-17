@@ -11,6 +11,10 @@ class NoSprintWeekError(Exception):
     pass
 
 
+class WebhookSignatureError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class SprintWeek:
     id: str

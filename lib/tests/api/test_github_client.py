@@ -28,9 +28,11 @@ class RecordingUrlopen:
     def __init__(self) -> None:
         self.response_body: Any = None
         self.sent_requests: list[urllib.request.Request] = []
+        self.received_timeouts: list[float] = []
 
-    def __call__(self, http_request: urllib.request.Request) -> FakeHttpResponse:
+    def __call__(self, http_request: urllib.request.Request, timeout: float) -> FakeHttpResponse:
         self.sent_requests.append(http_request)
+        self.received_timeouts.append(timeout)
         return FakeHttpResponse(self.response_body)
 
 
@@ -48,6 +50,7 @@ def test_request_sends_token_and_json_body(recording_urlopen: RecordingUrlopen) 
 
     assert response == {"ok": True}
     assert recording_urlopen.sent_requests[0].full_url == "https://api.github.com/repos/owner/name/issues"
+    assert recording_urlopen.received_timeouts == [30]
     assert recording_urlopen.sent_requests[0].get_header("Authorization") == "Bearer secret-token"
     assert recording_urlopen.sent_requests[0].data == b'{"title": "Bug"}'
 
