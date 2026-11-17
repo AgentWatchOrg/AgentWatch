@@ -26,4 +26,4 @@ Sprints are one week, Monday to Sunday. Winter break (Dec 14 – Jan 3) has no s
 | Issue closed | Status set to Done | same |
 | Monday 00:00 | Unfinished cards move to the new sprint; summary posted on the Sprint Log issue | `weekly-sprint-rollover.yml` (`agent-watch project-board roll-over-sprint`) |
 
-The rollover workflow needs the `PROJECT_TOKEN` repository secret (scopes `project`, `repo`). The web server uses its own narrower `project-board-token` from SSM.
+The rollover workflow and the web server both use the `PROJECT_TOKEN` repository secret (scopes `project`, `repo`); each web server deploy copies it to the server.
