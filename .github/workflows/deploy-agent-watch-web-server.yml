@@ -37,8 +37,11 @@ jobs:
               aws ssm put-parameter --name "$parameter_name" --type SecureString --overwrite --value "$secret_value" \
                 --query Version --output text >/dev/null
               echo "Updated $parameter_name"
-            elif aws ssm delete-parameter --name "$parameter_name" 2>/dev/null; then
+            elif delete_error=$(aws ssm delete-parameter --name "$parameter_name" 2>&1); then
               echo "Deleted $parameter_name; its GitHub secret is not set"
+            elif [[ $delete_error != *ParameterNotFound* ]]; then
+              echo "$delete_error" >&2
+              exit 1
             fi
           done
       - name: Run the deploy script on the instance
