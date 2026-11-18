@@ -1,6 +1,6 @@
 # AWS account
 
-Mitchell Wasson confirmed that the capstone AWS account has been provisioned and two designated teammates have admin access.
+Mitchell Wasson confirmed that the capstone AWS account has been provisioned and two designated teammates have admin access (Grazia and Ernesto).
 
 ## Access
 
