@@ -5,26 +5,40 @@ Mitchell Wasson confirmed that the capstone AWS account has been provisioned and
 ## Access
 
 - Admins sign in from a Cisco laptop via the [AWS console portal](https://go2.cisco.com/aws) and select the admin role.
-- The admins arrange appropriately permissioned access for other team members. Team access arrangements are still open.
+- The designated admins will coordinate AWS access and permissions for the rest of the team.
 
 ## Account restrictions
 
-- Use the account only for AgentWatch and handle public data only. Keep Cisco data out of the account.
-- Cisco monitors the account for security violations. The team must address any guardrail violations.
-- Keep S3 buckets private and network interfaces inaccessible to the general public. Restrict instance access to approved IP addresses. Crypto mining is prohibited.
-- The budget is USD $1,000 through the end of January 2027 and resets to USD $1,000 for February through April 2027. Additional funding is not guaranteed.
-- Automatic account deletion is expected around mid-May 2027. Confirm the exact date with Mitchell.
+> - The account is rated for public data only. That is, nothing from Cisco should enter this AWS account. This matches with non-Cisco employees (your teammates) getting access to the account via access keys
+> - There is corporate security monitoring on the account. If you do something that trips the guardrails, you'll have to fix it. I tried to set it up so we'll get a webex message in this space if it happens.
+> - The budget for the account is set at 1000USD per quarter. This means you've got 1k from now until the end of january. Then it will reset and you get 1k for Feb-April. If you use this budget then you're out of luck.
+> - If you predict that you need for budget for something or run out of budget let me know and I can try to get more but really don't count on it.
+> - Using the AWS account for anything other than this project (e.g. other projects, side hustles, crypto mining) is not allowed and the account will be shut down if this is the case.
+
+Automatic account deletion is expected in May 2027.
+
+### Security guardrails
+
+> Known things that will trip security guardrails:
+>
+> - public S3 buckets
+> - world-accessible network interfaces (so if you are going to make a VM, your security group needs to specify ip addresses that you will access it from and block everything else)
+> - crypto mining
 
 ## Mitchell’s recommendations
 
-- Use one agreed AWS region for project resources.
-- Manage resources with Terraform or AWS CloudFormation.
-- Designate an AWS lead, ideally one of the two admins.
-- Use Bedrock for AgentWatch prototypes where useful. Mitchell recommends against using it for personal coding assistants because of cost.
+> I recommend not using the Bedrock API for the purposes of powering your personal coding agents to implement the project. That will pretty quickly eat through the budget, especially with 6 of you. However, feel free to use the Bedrock API to power the claude agent in prototypes of your software system if you think there is a benefit.
+>
+> Another best practice would be for your team to align on a single geographic region to use. Things are a real pain if stuff gets spread across different regions and you forget where to look for something
+>
+> Also, I recommend using something like terraform or AWS cloud formation for resource creation and management. It allows for quick creation and teardown while keeping stuff version controlled. These days the coding agents can also create that infrastructure as code more quickly than you can click in the GUI.
+>
+> Please feel free to ask questions on any of the above. I can give some light support, but I expect y'all to be able to figure it out. If one of you two has the interest, it might be beneficial to become the team's "AWS expert". Lots of cool tech to learn there.
+>
+> I say one of you two, because you two have the real administrative access through your cisco laptops.
 
 ## Open decisions
 
 - AWS region
 - AWS lead
 - Team access arrangements
-- Exact automatic deletion date
