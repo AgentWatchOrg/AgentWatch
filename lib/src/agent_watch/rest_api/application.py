@@ -2,8 +2,8 @@ import os
 
 from fastapi import FastAPI
 
-from agent_watch.logging_configuration import DEFAULT_LOG_LEVEL_NAME, LOG_LEVEL_ENVIRONMENT_VARIABLE, configure_logging
 from agent_watch.rest_api.routers.health_router import health_router
+from agent_watch.utilities.logging_configuration import DEFAULT_LOG_LEVEL_NAME, LOG_LEVEL_ENVIRONMENT_VARIABLE, configure_logging
 
 
 def create_application() -> FastAPI:

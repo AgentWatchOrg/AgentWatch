@@ -21,6 +21,9 @@ lib/src/agent_watch/
   rest_api/               FastAPI entry points only, behind the `rest-api` extra
     application.py        create_application(); includes every router
     routers/<area>_router.py
+  utilities/              small helpers used by more than one of api, cli, rest_api
+    logging_configuration.py
+    project_calendar.py
 lib/tests/                mirrors src/agent_watch: tests/api/<area>/test_<module>.py, tests/cli/test_<module>.py,
                           tests/rest_api/routers/test_<area>_router.py
   conftest.py             fixtures shared by every test; nested conftest.py for fixtures used by one folder
@@ -49,8 +52,14 @@ Callable from the CLI and the REST API with no changes.
 ## Logging
 - Every module that reports anything declares `logger: logging.Logger = logging.getLogger(__name__)` with its globals.
 - Never `print`, `click.echo`, or `click.secho`; `tests/test_no_printing.py` fails if any appear under `src/`.
-- `agent_watch.logging_configuration.configure_logging` is the only place handlers and format are set. The CLI calls it from `--log-level` (env `AGENT_WATCH_LOG_LEVEL`); the REST API calls it in `create_application`.
+- `agent_watch.utilities.logging_configuration.configure_logging` is the only place handlers and format are set. The CLI calls it from `--log-level` (env `AGENT_WATCH_LOG_LEVEL`); the REST API calls it in `create_application`.
 - Levels: `debug` for request-level detail, `info` for results a person running the command wants, `warning` for recoverable problems, `error` for failures before exiting non-zero.
+
+## utilities
+- Only small, general helpers that two or more of `api`, `cli`, and `rest_api` use: logging setup, dates and time zones.
+- One module per concern, named for what it does (`project_calendar.py`), never `helpers.py` or `misc.py`.
+- No business logic and no calls to external services; those belong in `api`.
+- Never imports from `api`, `cli`, or `rest_api`, so any of them can import it.
 
 ## File layout
 Every file in this order:
