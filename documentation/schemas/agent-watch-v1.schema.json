@@ -41,10 +41,14 @@
       "minLength": 1
     },
     "source": {
-      "enum": ["tetragon", "auditd"]
+      "type": "string",
+      "minLength": 1,
+      "description": "Sensor name. Known v1.0 values: tetragon, auditd. A MINOR version may add values."
     },
     "activity_type": {
-      "enum": ["process_exec", "file_access", "network_connect"]
+      "type": "string",
+      "minLength": 1,
+      "description": "Known v1.0 values, each with checked details: process_exec, file_access, network_connect. A MINOR version may add values."
     },
     "process": {
       "type": "object",
