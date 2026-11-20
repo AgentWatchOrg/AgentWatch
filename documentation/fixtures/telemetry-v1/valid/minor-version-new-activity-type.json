@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.1",
+  "event_id": "sha256:minor-version-new-type",
+  "forwarder_seq": 5,
+  "timestamp": "2026-11-18T12:02:00Z",
+  "host": "agentwatch-test-01",
+  "source": "tetragon",
+  "activity_type": "dns_query",
+  "process": {
+    "exec_id": "0x1250",
+    "pid": 2480,
+    "executable": "/usr/bin/curl"
+  },
+  "agent": {
+    "attribution_status": "known",
+    "session_id": "agent-session-001"
+  },
+  "target": "example.invalid",
+  "outcome": "success",
+  "details": {
+    "query_name": "example.invalid",
+    "query_type": "A"
+  }
+}

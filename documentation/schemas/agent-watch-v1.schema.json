@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentwatchorg.github.io/AgentWatch/schemas/agent-watch-v1.schema.json",
+  "title": "AgentWatch v1 Telemetry Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event_id",
+    "forwarder_seq",
+    "timestamp",
+    "host",
+    "source",
+    "activity_type",
+    "process",
+    "agent",
+    "target",
+    "outcome",
+    "details"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.(0|[1-9][0-9]*)$",
+      "description": "MAJOR.MINOR contract version; this schema accepts every 1.x version."
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable forwarder-generated content hash."
+    },
+    "forwarder_seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Sensor name. Known v1.0 values: tetragon, auditd. A MINOR version may add values."
+    },
+    "activity_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Known v1.0 values, each with checked details: process_exec, file_access, network_connect. A MINOR version may add values."
+    },
+    "process": {
+      "type": "object",
+      "properties": {
+        "exec_id": {"type": "string", "minLength": 1},
+        "parent_exec_id": {"type": "string", "minLength": 1},
+        "pid": {"type": "integer", "minimum": 0},
+        "ppid": {"type": "integer", "minimum": 0},
+        "executable": {"type": "string", "minLength": 1},
+        "user_id": {"type": "integer"}
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["attribution_status"],
+      "properties": {
+        "attribution_status": {
+          "enum": ["known", "unknown"]
+        },
+        "session_id": {
+          "type": ["string", "null"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "attribution_status": {"const": "known"}
+            }
+          },
+          "then": {
+            "required": ["session_id"],
+            "properties": {
+              "session_id": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attribution_status": {"const": "unknown"}
+            }
+          },
+          "then": {
+            "required": ["session_id"],
+            "properties": {
+              "session_id": {"const": null}
+            }
+          }
+        }
+      ]
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outcome": {
+      "enum": ["success", "denied", "unknown"]
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["applied", "rules"],
+      "properties": {
+        "applied": {"type": "boolean"},
+        "rules": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "details": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "activity_type": {"const": "process_exec"}
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "properties": {
+              "arguments": {"type": "string"},
+              "cwd": {"type": "string"},
+              "parent_executable": {"type": "string"}
+            },
+            "not": {
+              "anyOf": [
+                {"required": ["path"]},
+                {"required": ["operation"]},
+                {"required": ["permission"]},
+                {"required": ["protocol"]},
+                {"required": ["family"]},
+                {"required": ["src_addr"]},
+                {"required": ["src_port"]},
+                {"required": ["dst_addr"]},
+                {"required": ["dst_port"]}
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "activity_type": {"const": "file_access"}
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "operation": {"enum": ["read", "write", "open", "read_write"]},
+              "permission": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4095,
+                "description": "Unix mode bits as a decimal integer, for example 420 for 0o644."
+              }
+            },
+            "not": {
+              "anyOf": [
+                {"required": ["arguments"]},
+                {"required": ["cwd"]},
+                {"required": ["parent_executable"]},
+                {"required": ["protocol"]},
+                {"required": ["family"]},
+                {"required": ["src_addr"]},
+                {"required": ["src_port"]},
+                {"required": ["dst_addr"]},
+                {"required": ["dst_port"]}
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "activity_type": {"const": "network_connect"}
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "properties": {
+              "protocol": {"enum": ["tcp", "udp"]},
+              "family": {"enum": ["ipv4", "ipv6"]},
+              "src_addr": {"type": "string", "minLength": 1},
+              "src_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+              "dst_addr": {"type": "string", "minLength": 1},
+              "dst_port": {"type": "integer", "minimum": 1, "maximum": 65535}
+            },
+            "not": {
+              "anyOf": [
+                {"required": ["arguments"]},
+                {"required": ["cwd"]},
+                {"required": ["parent_executable"]},
+                {"required": ["path"]},
+                {"required": ["operation"]},
+                {"required": ["permission"]}
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}
