@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "event_id": "sha256:wrong-type",
+  "forwarder_seq": "1",
+  "timestamp": "2026-11-18T12:00:00Z",
+  "host": "agentwatch-test-01",
+  "source": "tetragon",
+  "activity_type": "process_exec",
+  "process": {},
+  "agent": {
+    "attribution_status": "unknown",
+    "session_id": null
+  },
+  "target": "/usr/bin/curl",
+  "outcome": "unknown",
+  "details": {
+    "arguments": "",
+    "cwd": "/",
+    "parent_executable": "/bin/bash"
+  }
+}
