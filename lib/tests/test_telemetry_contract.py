@@ -16,6 +16,7 @@ EXPECTED_REASON_BY_INVALID_FIXTURE: dict[str, str] = {
     "wrong-forwarder-sequence-type": "'1' is not of type 'integer'",
     "mismatched-network-details": "should not be valid under",
     "invalid-timestamp": "'not-a-date' is not a 'date-time'",
+    "unknown-attribution-missing-session-id": "'session_id' is a required property",
 }
 
 
@@ -27,6 +28,7 @@ def load_json_file(json_path: Path) -> dict[str, Any]:
     return loaded_value
 
 
+@pytest.fixture(scope="module")
 def telemetry_schema_validator() -> Draft202012Validator:
     telemetry_schema: dict[str, Any] = load_json_file(SCHEMA_PATH)
     Draft202012Validator.check_schema(telemetry_schema)
@@ -38,11 +40,11 @@ def telemetry_schema_validator() -> Draft202012Validator:
     sorted(VALID_FIXTURE_DIRECTORY.glob("*.json")),
     ids=lambda fixture_path: fixture_path.stem,
 )
-def test_valid_telemetry_fixtures(fixture_path: Path) -> None:
+def test_valid_telemetry_fixtures(
+        fixture_path: Path, telemetry_schema_validator: Draft202012Validator) -> None:
     fixture: dict[str, Any] = load_json_file(fixture_path)
-    validator: Draft202012Validator = telemetry_schema_validator()
 
-    assert validator.is_valid(fixture), list(validator.iter_errors(fixture))
+    assert telemetry_schema_validator.is_valid(fixture), list(telemetry_schema_validator.iter_errors(fixture))
 
 
 @pytest.mark.parametrize(
@@ -50,14 +52,14 @@ def test_valid_telemetry_fixtures(fixture_path: Path) -> None:
     sorted(INVALID_FIXTURE_DIRECTORY.glob("*.json")),
     ids=lambda fixture_path: fixture_path.stem,
 )
-def test_invalid_telemetry_fixtures(fixture_path: Path) -> None:
+def test_invalid_telemetry_fixtures(
+        fixture_path: Path, telemetry_schema_validator: Draft202012Validator) -> None:
     assert fixture_path.stem in EXPECTED_REASON_BY_INVALID_FIXTURE, (
         f"Add the expected rejection reason for {fixture_path.name} to EXPECTED_REASON_BY_INVALID_FIXTURE")
     expected_reason: str = EXPECTED_REASON_BY_INVALID_FIXTURE[fixture_path.stem]
     fixture: dict[str, Any] = load_json_file(fixture_path)
-    validator: Draft202012Validator = telemetry_schema_validator()
 
-    errors: list[ValidationError] = list(validator.iter_errors(fixture))
+    errors: list[ValidationError] = list(telemetry_schema_validator.iter_errors(fixture))
 
     assert errors
     assert any(expected_reason in error.message for error in errors)

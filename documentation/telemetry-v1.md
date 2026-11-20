@@ -77,7 +77,7 @@ The test accepts every fixture under `documentation/fixtures/telemetry-v1/valid`
 
 An additive optional field or new activity type is a MINOR change. A removed or renamed required field, a type or meaning change, or a new required field is a MAJOR change.
 
-Consumers tolerate unknown fields in a MINOR version. The backend rejects an unsupported major version with a recorded reason. A MAJOR endpoint uses a new path such as `/v2/events`, and the backend accepts both the old and new major versions for one sprint before dropping the old one.
+Consumers tolerate unknown fields in a MINOR version, and the v1 schema accepts every `1.x` `schema_version`. The backend rejects an unsupported major version with a recorded reason. A MAJOR endpoint uses a new path such as `/v2/events`, and the backend accepts both the old and new major versions for one sprint before dropping the old one.
 
 ## Downstream consumers
 
