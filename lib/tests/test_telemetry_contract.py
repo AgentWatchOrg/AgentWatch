@@ -11,6 +11,12 @@ REPOSITORY_ROOT: Path = Path(__file__).resolve().parents[2]
 SCHEMA_PATH: Path = REPOSITORY_ROOT / "documentation" / "schemas" / "agent-watch-v1.schema.json"
 VALID_FIXTURE_DIRECTORY: Path = REPOSITORY_ROOT / "documentation" / "fixtures" / "telemetry-v1" / "valid"
 INVALID_FIXTURE_DIRECTORY: Path = REPOSITORY_ROOT / "documentation" / "fixtures" / "telemetry-v1" / "invalid"
+EXPECTED_REASON_BY_INVALID_FIXTURE: dict[str, str] = {
+    "missing-event-id": "'event_id' is a required property",
+    "wrong-forwarder-sequence-type": "'1' is not of type 'integer'",
+    "mismatched-network-details": "should not be valid under",
+    "invalid-timestamp": "'not-a-date' is not a 'date-time'",
+}
 
 
 def load_json_file(json_path: Path) -> dict[str, Any]:
@@ -40,21 +46,14 @@ def test_valid_telemetry_fixtures(fixture_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("fixture_path", "expected_reason"),
-    [
-        (INVALID_FIXTURE_DIRECTORY / "missing-event-id.json", "'event_id' is a required property"),
-        (INVALID_FIXTURE_DIRECTORY / "wrong-forwarder-sequence-type.json", "'1' is not of type 'integer'"),
-        (INVALID_FIXTURE_DIRECTORY / "mismatched-network-details.json", "should not be valid under"),
-        (INVALID_FIXTURE_DIRECTORY / "invalid-timestamp.json", "'not-a-date' is not a 'date-time'"),
-    ],
-    ids=[
-        "missing-event-id",
-        "wrong-forwarder-sequence-type",
-        "mismatched-network-details",
-        "invalid-timestamp",
-    ],
+    "fixture_path",
+    sorted(INVALID_FIXTURE_DIRECTORY.glob("*.json")),
+    ids=lambda fixture_path: fixture_path.stem,
 )
-def test_invalid_telemetry_fixtures(fixture_path: Path, expected_reason: str) -> None:
+def test_invalid_telemetry_fixtures(fixture_path: Path) -> None:
+    assert fixture_path.stem in EXPECTED_REASON_BY_INVALID_FIXTURE, (
+        f"Add the expected rejection reason for {fixture_path.name} to EXPECTED_REASON_BY_INVALID_FIXTURE")
+    expected_reason: str = EXPECTED_REASON_BY_INVALID_FIXTURE[fixture_path.stem]
     fixture: dict[str, Any] = load_json_file(fixture_path)
     validator: Draft202012Validator = telemetry_schema_validator()
 
