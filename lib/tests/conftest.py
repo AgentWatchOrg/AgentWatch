@@ -5,7 +5,11 @@ from doubles.github_test_doubles import ScriptedGitHubClient
 from doubles.project_board_test_doubles import (
     FakeProjectBoardClient, FakeProjectBoardClientFactory, ProjectItemFactory)
 from doubles.pull_request_review_test_doubles import ExistingReviewThreadFactory, ReviewFindingFactory
+from telemetry_fixture_paths import INVALID_FIXTURE_DIRECTORY, VALID_FIXTURE_DIRECTORY, load_json_object
 
+from agent_watch.api.github_client import JsonObject
+from agent_watch.api.ingestion.event_store import InMemoryEventStore
+from agent_watch.api.ingestion.schema_validator import SchemaValidator, load_telemetry_schema_validator
 from agent_watch.api.project_board.models import OpenIssue, ProjectBoard, ProjectItem, SprintWeek
 from agent_watch.api.pull_request_review.models import (
     ChangedFile, ExistingReviewThread, PullRequest, ReviewFinding, ReviewFindingCategory, ReviewSeverity)
@@ -96,3 +100,28 @@ def make_thread() -> ExistingReviewThreadFactory:
                                     is_outdated=is_outdated, author_login=author_login, body="Earlier comment",
                                     finding_fingerprint=finding_fingerprint, finding_category=finding_category)
     return build_existing_review_thread
+
+
+@pytest.fixture
+def telemetry_schema_validator() -> SchemaValidator:
+    return load_telemetry_schema_validator()
+
+
+@pytest.fixture
+def event_store() -> InMemoryEventStore:
+    return InMemoryEventStore()
+
+
+@pytest.fixture
+def valid_process_exec_event() -> JsonObject:
+    return load_json_object(VALID_FIXTURE_DIRECTORY / "process-exec.json")
+
+
+@pytest.fixture
+def valid_file_access_event() -> JsonObject:
+    return load_json_object(VALID_FIXTURE_DIRECTORY / "file-access.json")
+
+
+@pytest.fixture
+def invalid_missing_event_id_event() -> JsonObject:
+    return load_json_object(INVALID_FIXTURE_DIRECTORY / "missing-event-id.json")

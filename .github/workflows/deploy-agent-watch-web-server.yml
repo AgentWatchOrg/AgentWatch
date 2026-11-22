@@ -29,8 +29,9 @@ jobs:
         env:
           GITHUB_WEBHOOK_SECRET: ${{ secrets.BOARD_WEBHOOK_SECRET }}
           PROJECT_BOARD_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          AGENT_WATCH_INGESTION_API_KEY: ${{ secrets.INGESTION_API_KEY }}
         run: |
-          for variable_name in GITHUB_WEBHOOK_SECRET PROJECT_BOARD_TOKEN; do
+          for variable_name in GITHUB_WEBHOOK_SECRET PROJECT_BOARD_TOKEN AGENT_WATCH_INGESTION_API_KEY; do
             secret_value=${!variable_name}
             parameter_name=/agent-watch/rest-api/$(tr '[:upper:]_' '[:lower:]-' <<<"$variable_name")
             if [[ -n $secret_value ]]; then
