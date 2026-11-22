@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "event_id": "sha256:mismatched",
+  "forwarder_seq": 4,
+  "timestamp": "2026-11-18T12:03:00Z",
+  "host": "agentwatch-test-01",
+  "source": "tetragon",
+  "activity_type": "network_connect",
+  "process": {"pid": 2480},
+  "agent": {
+    "attribution_status": "unknown",
+    "session_id": null
+  },
+  "target": "/home/agent/report.txt",
+  "outcome": "success",
+  "details": {
+    "path": "/home/agent/report.txt",
+    "operation": "read"
+  }
+}

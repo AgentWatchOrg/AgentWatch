@@ -39,6 +39,7 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Workflows | Install `agent-watch` from main with `pip install "git+https://github.com/${{ github.repository }}.git@main#subdirectory=lib"`, never from a pull request's checkout, so PR code never runs with secrets or grades itself; then run one command; one job named after what it does; `workflow_dispatch` with `is_dry_run`; board token from `secrets.PROJECT_TOKEN` |
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |
+| Event schemas | JSON Schema in `documentation/schemas/<name>-v<N>.schema.json`, fixtures in `documentation/fixtures/<name>-v<N>/{valid,invalid}/`, checked by a `jsonschema` contract test in `lib/tests/` |
 | Issues and PRs | `creating-github-issues`, `writing-pull-request-descriptions`, `splitting-large-pull-requests-into-stacks` |
 | Claude agents | Claude Agent SDK with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` from repository secrets, wrapped in an `api` client class; read-only tools, `max_turns` cap, structured output parsed into models; skills from `main` |
 | Pull request review | `review-pull-requests-with-claude.yml` runs `agent-watch pull-request-review review`; rules in `reviewing-pull-requests-as-senior-staff-engineer` |

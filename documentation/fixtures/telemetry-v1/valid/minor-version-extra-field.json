@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.1",
+  "event_id": "sha256:minor-version",
+  "forwarder_seq": 4,
+  "timestamp": "2026-11-18T12:01:00Z",
+  "host": "agentwatch-test-01",
+  "source": "auditd",
+  "activity_type": "file_access",
+  "process": {
+    "pid": 2450,
+    "executable": "/bin/cat"
+  },
+  "agent": {
+    "attribution_status": "unknown",
+    "session_id": null
+  },
+  "target": "/home/agent/report.txt",
+  "outcome": "unknown",
+  "details": {
+    "path": "/home/agent/report.txt",
+    "operation": "read",
+    "permission": 420
+  },
+  "future_optional_field": "consumers ignore unknown fields"
+}

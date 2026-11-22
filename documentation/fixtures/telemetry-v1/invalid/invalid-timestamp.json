@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "event_id": "sha256:invalid-timestamp",
+  "forwarder_seq": 1,
+  "timestamp": "not-a-date",
+  "host": "agentwatch-test-01",
+  "source": "tetragon",
+  "activity_type": "process_exec",
+  "process": {
+    "exec_id": "0x1234",
+    "parent_exec_id": "0x1200",
+    "pid": 2450,
+    "ppid": 2400,
+    "executable": "/usr/bin/curl",
+    "user_id": 1000
+  },
+  "agent": {
+    "attribution_status": "known",
+    "session_id": "agent-session-001"
+  },
+  "target": "/usr/bin/curl",
+  "outcome": "success",
+  "details": {
+    "arguments": "https://example.invalid/resource",
+    "cwd": "/home/agent",
+    "parent_executable": "/bin/bash"
+  }
+}
