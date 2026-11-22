@@ -10,9 +10,10 @@ requires-python = ">=3.12"
 dependencies = ["click>=8.1,<9"]
 
 [project.optional-dependencies]
+ingestion = ["jsonschema>=4.23,<5", "rfc3339-validator>=0.1.4,<1"]
 pull-request-review = ["claude-agent-sdk>=0.2.182,<0.3"]
-rest-api = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1"]
-development = ["agent-watch[pull-request-review,rest-api]", "mypy>=1.11", "build>=1.2", "pytest>=8.3", "httpx2>=2.16", "jsonschema>=4.23,<5", "rfc3339-validator>=0.1.4,<1", "types-jsonschema>=4.23,<5"]
+rest-api = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "agent-watch[ingestion]"]
+development = ["agent-watch[pull-request-review,rest-api]", "mypy>=1.11", "build>=1.2", "pytest>=8.3", "httpx2>=2.16", "types-jsonschema>=4.23,<5"]
 
 [project.scripts]
 agent-watch = "agent_watch.cli.main:agent_watch"

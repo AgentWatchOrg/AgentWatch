@@ -40,6 +40,7 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Skills | `.claude/skills/<descriptive-name>/SKILL.md`, helper scripts beside it |
 | Documentation | Markdown in `documentation/<area>/`, rules in `writing-project-documentation` |
 | Event schemas | JSON Schema in `documentation/schemas/<name>-v<N>.schema.json`, fixtures in `documentation/fixtures/<name>-v<N>/{valid,invalid}/`, checked by a `jsonschema` contract test in `lib/tests/` |
+| Runtime access to a committed `documentation/` file | Vendor a real copy inside the package (for example `lib/src/agent_watch/api/ingestion/schema/`) so every install mode (editable, wheel, sdist-built wheel) includes it the same way `[tool.hatch.build.targets.wheel.force-include]` cannot survive an sdist round-trip for a path outside `lib/`. A test asserts the vendored copy matches the canonical `documentation/` file byte-for-byte so it can't drift |
 | Issues and PRs | `creating-github-issues`, `writing-pull-request-descriptions`, `splitting-large-pull-requests-into-stacks` |
 | Claude agents | Claude Agent SDK with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` from repository secrets, wrapped in an `api` client class; read-only tools, `max_turns` cap, structured output parsed into models; skills from `main` |
 | Pull request review | `review-pull-requests-with-claude.yml` runs `agent-watch pull-request-review review`; rules in `reviewing-pull-requests-as-senior-staff-engineer` |
