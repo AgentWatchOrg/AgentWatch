@@ -5,10 +5,10 @@ from datetime import date, datetime
 import click
 
 from agent_watch.api.github_client import GitHubClient
-from agent_watch.api.project_calendar import today_in_project_time_zone
 from agent_watch.api.project_board.project_board_client import ProjectBoardClient
 from agent_watch.api.project_board.roll_over_sprint import SprintRolloverResult, roll_over_sprint
 from agent_watch.api.project_board.synchronize_statuses import BoardChange, synchronize_statuses
+from agent_watch.utilities.project_calendar import today_in_project_time_zone
 
 logger: logging.Logger = logging.getLogger(__name__)
 

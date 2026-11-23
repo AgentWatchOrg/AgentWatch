@@ -31,7 +31,8 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Server secrets | GitHub repository secrets only; the deploy workflow copies them into SSM Parameter Store under `/agent-watch/rest-api/`, and the deploy script writes that path into the service's environment file; never set in AWS by hand or committed |
 | Local services | Docker Compose in `infrastructure/<service>/`, with a committed `.env.example` and git-ignored `.env` |
 | GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
-| Logging | Module logger from `logging.getLogger(__name__)`; setup only in `agent_watch/logging_configuration.py`; never `print` or `click.echo` |
+| Shared helpers | `agent_watch/utilities/<concern>.py`, only for helpers two or more layers use; see `structuring-library-code` |
+| Logging | Module logger from `logging.getLogger(__name__)`; setup only in `agent_watch/utilities/logging_configuration.py`; never `print` or `click.echo` |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
 | Tests | pytest in `lib/tests/`, folders mirroring `src/agent_watch/`; shared fakes in `lib/tests/doubles/`; required check `run_type_checks_and_unit_tests` |
 | Heavy dependencies | An optional extra named after the area (`agent-watch[pull-request-review]`); api code depends on a Protocol, and the one command that needs the real client imports it inside the command |
