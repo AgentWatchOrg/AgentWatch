@@ -18,6 +18,10 @@ The `pull-request-review review` command also needs the Claude Agent SDK:
 ```bash
 ~/.venvs/agent-watch/bin/pip install "agent-watch[pull-request-review] @ git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
 ```
+`agent_watch.api.ingestion` needs the `ingestion` extra (already pulled in by `rest-api`):
+```bash
+~/.venvs/agent-watch/bin/pip install "agent-watch[ingestion] @ git+https://github.com/AgentWatchOrg/AgentWatch.git@main#subdirectory=lib"
+```
 For development:
 ```bash
 pip install -e "lib[development]"

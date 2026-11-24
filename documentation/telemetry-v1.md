@@ -68,10 +68,10 @@ Run the contract tests:
 ```bash
 cd lib
 python -m pip install -e ".[development]"
-pytest tests/test_telemetry_contract.py
+pytest tests/test_telemetry_contract.py tests/api/ingestion/test_schema_validator.py
 ```
 
-The test accepts every fixture under `documentation/fixtures/telemetry-v1/valid` and rejects every fixture under `documentation/fixtures/telemetry-v1/invalid`.
+The first file accepts every fixture under `documentation/fixtures/telemetry-v1/valid` and rejects every fixture under `documentation/fixtures/telemetry-v1/invalid`, against the schema vendored at `lib/src/agent_watch/api/ingestion/schema/agent-watch-v1.schema.json`. The second file checks that vendored copy matches this schema byte-for-byte, so a schema change must update both files together.
 
 ## Version changes
 

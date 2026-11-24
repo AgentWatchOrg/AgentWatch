@@ -2,4 +2,9 @@ built-documentation-site/
 built-library-packages/
 *.egg-info/
 __pycache__/
+.venv/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
 **/.env
