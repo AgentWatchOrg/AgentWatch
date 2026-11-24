@@ -1,0 +1,29 @@
+{
+  "process_exec": {
+    "process": {
+      "exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw",
+      "pid": 2450,
+      "uid": 1000,
+      "cwd": "/home/agent",
+      "binary": "/usr/bin/curl",
+      "arguments": "http://127.0.0.1:8080/resource",
+      "flags": "execve clone",
+      "start_time": "2026-11-18T12:00:00.123456789Z",
+      "auid": 1000,
+      "parent_exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw",
+      "tid": 2450
+    },
+    "parent": {
+      "exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw",
+      "pid": 2400,
+      "uid": 1000,
+      "cwd": "/home/agent",
+      "binary": "/bin/bash",
+      "flags": "execve clone",
+      "start_time": "2026-11-18T11:59:00.000000000Z",
+      "tid": 2400
+    }
+  },
+  "node_name": "agentwatch-test-01",
+  "time": "2026-11-18T12:00:00.123456789Z"
+}
