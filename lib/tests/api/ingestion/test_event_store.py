@@ -47,3 +47,12 @@ def test_in_memory_event_store_pop_unexported_events_does_not_remove_events_from
     event_store.pop_unexported_events()
 
     assert event_store.contains("event-1") is True
+
+
+def test_in_memory_event_store_requeue_unexported_events_puts_them_back_first(
+        event_store: InMemoryEventStore, first_event: JsonObject, second_event: JsonObject) -> None:
+    event_store.add("event-2", second_event)
+
+    event_store.requeue_unexported_events([first_event])
+
+    assert event_store.pop_unexported_events() == [first_event, second_event]

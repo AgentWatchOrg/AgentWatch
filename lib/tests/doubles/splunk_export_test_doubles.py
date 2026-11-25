@@ -8,7 +8,7 @@ from types import TracebackType
 from typing import Protocol
 
 from agent_watch.api.github_client import JsonObject
-from agent_watch.api.splunk_export.models import SplunkHecSettings
+from agent_watch.api.splunk_export.models import SplunkExportError, SplunkHecSettings
 
 TEST_HEC_TOKEN: str = "test-hec-token-do-not-log"
 FAKE_HEC_EVENT_URL: str = "https://splunk.invalid:8088/services/collector/event"
@@ -17,6 +17,15 @@ FAKE_HEC_EVENT_URL: str = "https://splunk.invalid:8088/services/collector/event"
 class SplunkHecSettingsFactory(Protocol):
     def __call__(self, hec_url: str = "https://splunk.invalid:8088", index: str | None = None,
                  should_verify_tls: bool = True) -> SplunkHecSettings: ...
+
+
+class HecEventBatchFactory(Protocol):
+    def __call__(self, event_ids: str) -> list[JsonObject]: ...
+
+
+class RecordingHecEventSenderFactory(Protocol):
+    def __call__(self, failing_request_numbers: frozenset[int],
+                 failure: Exception | None = None) -> "RecordingHecEventSender": ...
 
 
 class FakeHecResponse:
@@ -42,6 +51,39 @@ class ScriptedHecUrlopen:
         if self.failure is not None:
             raise self.failure
         return FakeHecResponse()
+
+
+class RecordingHecEventSender:
+    def __init__(self, failing_request_numbers: frozenset[int] = frozenset(),
+                 failure: Exception = SplunkExportError(
+                     "Could not reach Splunk HEC at https://splunk.invalid/services/collector/event")) -> None:
+        self.sent_batches: list[list[JsonObject]] = []
+        self._failing_request_numbers: frozenset[int] = failing_request_numbers
+        self._failure: Exception = failure
+        self._request_count: int = 0
+
+    def send_hec_events(self, hec_events: list[JsonObject]) -> None:
+        self._request_count += 1
+        if self._request_count in self._failing_request_numbers:
+            raise self._failure
+        self.sent_batches.append(hec_events)
+
+    def sent_events(self) -> list[JsonObject]:
+        return [hec_event["event"] for sent_batch in self.sent_batches for hec_event in sent_batch]
+
+
+class EventRejectingHecEventSender:
+    def __init__(self, rejected_event_id: str) -> None:
+        self.sent_batch_sizes: list[int] = []
+        self.accepted_event_ids: list[str] = []
+        self._rejected_event_id: str = rejected_event_id
+
+    def send_hec_events(self, hec_events: list[JsonObject]) -> None:
+        self.sent_batch_sizes.append(len(hec_events))
+        event_ids: list[str] = [hec_event["event"]["event_id"] for hec_event in hec_events]
+        if self._rejected_event_id in event_ids:
+            raise SplunkExportError("returned HTTP 400: Invalid data format", is_retryable=False)
+        self.accepted_event_ids += event_ids
 
 
 def build_hec_http_error(status_code: int, response_body: str) -> urllib.error.HTTPError:

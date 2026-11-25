@@ -1,7 +1,8 @@
 import urllib.request
 
 import pytest
-from doubles.splunk_export_test_doubles import TEST_HEC_TOKEN, ScriptedHecUrlopen, SplunkHecSettingsFactory
+from doubles.splunk_export_test_doubles import (
+    TEST_HEC_TOKEN, RecordingHecEventSender, ScriptedHecUrlopen, SplunkHecSettingsFactory)
 
 from agent_watch.api.splunk_export.models import SplunkHecSettings
 
@@ -20,3 +21,8 @@ def scripted_hec_urlopen(monkeypatch: pytest.MonkeyPatch) -> ScriptedHecUrlopen:
     fake_urlopen: ScriptedHecUrlopen = ScriptedHecUrlopen()
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     return fake_urlopen
+
+
+@pytest.fixture
+def recording_hec_event_sender() -> RecordingHecEventSender:
+    return RecordingHecEventSender()
