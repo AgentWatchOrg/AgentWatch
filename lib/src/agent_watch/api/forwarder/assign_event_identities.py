@@ -1,26 +1,34 @@
 import hashlib
 import json
+from collections import OrderedDict
 
 from agent_watch.api.github_client import JsonObject
 
 EVENT_IDENTITY_FIELD_NAMES: tuple[str, ...] = ("host", "timestamp", "process", "activity_type", "target", "details")
 EVENT_ID_PREFIX: str = "sha256:"
+DEFAULT_REMEMBERED_EVENT_ID_COUNT: int = 10_000
 
 
 class EventIdentityAssigner:
-    def __init__(self) -> None:
+    def __init__(self, remembered_event_id_count: int = DEFAULT_REMEMBERED_EVENT_ID_COUNT) -> None:
         self._next_forwarder_seq: int = 1
-        self._assigned_event_ids: set[str] = set()
+        self._remembered_event_id_count: int = remembered_event_id_count
+        self._recent_event_ids: OrderedDict[str, None] = OrderedDict()
 
     def assign_identity(self, event: JsonObject) -> JsonObject:
         forwarder_seq: int = self._next_forwarder_seq
         self._next_forwarder_seq += 1
         event_id: str = compute_event_id(event)
-        if event_id in self._assigned_event_ids:
+        if event_id in self._recent_event_ids:
             event_id = compute_event_id(event, forwarder_seq)
-        self._assigned_event_ids.add(event_id)
+        self.remember_event_id(event_id)
         return {"schema_version": event["schema_version"], "event_id": event_id, "forwarder_seq": forwarder_seq,
                 **event}
+
+    def remember_event_id(self, event_id: str) -> None:
+        self._recent_event_ids[event_id] = None
+        if len(self._recent_event_ids) > self._remembered_event_id_count:
+            self._recent_event_ids.popitem(last=False)
 
 
 def canonical_event_text(event: JsonObject, distinguishing_forwarder_seq: int | None = None) -> str:
