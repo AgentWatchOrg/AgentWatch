@@ -13,6 +13,8 @@ class EventStore(Protocol):
 
     def pop_unexported_events(self) -> list[JsonObject]: ...
 
+    def requeue_unexported_events(self, events: list[JsonObject]) -> None: ...
+
 
 class InMemoryEventStore:
     def __init__(self) -> None:
@@ -32,3 +34,7 @@ class InMemoryEventStore:
             unexported_events: list[JsonObject] = self._unexported_events
             self._unexported_events = []
             return unexported_events
+
+    def requeue_unexported_events(self, events: list[JsonObject]) -> None:
+        with self.lock:
+            self._unexported_events = events + self._unexported_events
