@@ -38,6 +38,8 @@ Runs before `event_id` is assigned and before the event enters the buffer, on ev
 | Rule | Matches |
 |---|---|
 | `authorization-header` | `Authorization: Bearer <value>`, `Basic`, `Token` |
+| `cookie-header` | the value of a `Cookie:` or `Set-Cookie:` header |
+| `secret-json-field` | the string value of a JSON key whose name contains `password`, `secret`, `token`, `api-key`, or `access-key`, such as `{"api_key":"<value>"}` |
 | `secret-header` | a header whose name contains `password`, `secret`, `token`, `api-key`, or `access-key`, such as `X-Api-Key: <value>` |
 | `password-arg` | a flag whose name contains `password`, `passwd`, `pwd`, `secret`, `token`, `api-key`, or `access-key`, followed by `=` or a space |
 | `user-credential` | the password in `-u user:password` or `--user user:password` |
