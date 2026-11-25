@@ -89,14 +89,14 @@ def test_send_buffered_events_sends_logged_batches_and_numbers_rejections_across
     assert "Delivered 2 event(s): 2 accepted, 0 rejected, 0 duplicate" in caplog.text
 
 
-def test_forward_tetragon_records_in_a_dry_run_sends_nothing(
+def test_forward_tetragon_records_in_a_dry_run_sends_and_buffers_nothing(
         load_tetragon_record: TetragonRecordLoader, identity_assigner: EventIdentityAssigner,
-        event_buffer: InMemoryEventBuffer, recording_sender: RecordingEventBatchSender) -> None:
+        event_buffer: InMemoryEventBuffer) -> None:
     result: ForwardingResult = forward_tetragon_records(
         [load_tetragon_record("process-exec")], identity_assigner, event_buffer, event_batch_sender=None)
 
-    assert result.planned_event_count == 1
-    assert recording_sender.sent_batches == []
+    assert (result.planned_event_count, result.accepted_count, result.unsent_event_count) == (1, 0, 0)
+    assert event_buffer.unsent_event_count() == 0
 
 
 def test_forward_tetragon_records_delivers_every_event_type_to_ingestion(

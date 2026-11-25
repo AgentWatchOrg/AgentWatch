@@ -9,11 +9,11 @@ export INGESTION_API_KEY=<the server's AGENT_WATCH_INGESTION_API_KEY>
 agent-watch forwarder forward-tetragon-events --tetragon-events-file tetragon-events.json
 ```
 
-`tetra getevents` keeps writing until you stop it with Ctrl+C. The command reads the whole file, then sends it. Set the API key through `INGESTION_API_KEY` rather than the flag, so it does not show in the process list.
+`tetra getevents` keeps writing until you stop it with Ctrl+C. The command reads its whole input, then sends it, so give it a finished file. Do not pipe `tetra getevents` into it: the input never ends, and Ctrl+C stops both programs before anything is sent. Set the API key through `INGESTION_API_KEY` rather than the flag, so it does not show in the process list.
 
 | Option | Env | Purpose |
 |---|---|---|
-| `--tetragon-events-file` | `TETRAGON_EVENTS_FILE` | Tetragon JSON export, one record per line; `-` reads stdin |
+| `--tetragon-events-file` | `TETRAGON_EVENTS_FILE` | Finished Tetragon JSON export, one record per line; `-` reads stdin to its end |
 | `--ingestion-url` | `INGESTION_URL` | Base URL of the REST API; required unless `--dry-run` |
 | `--ingestion-api-key` | `INGESTION_API_KEY` | Sent as `X-Api-Key`; required unless `--dry-run` |
 | `--dry-run` | `IS_DRY_RUN` | Normalize and redact without sending or contacting the server |

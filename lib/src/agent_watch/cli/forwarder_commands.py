@@ -23,7 +23,8 @@ def forwarder() -> None:
                    help="Map a Tetragon JSON export to v1 events, redact secrets, and send them to POST /v1/events.")
 @click.option("--tetragon-events-file", envvar="TETRAGON_EVENTS_FILE",
               type=click.File("r", encoding="utf-8", errors="replace"), required=True,
-              help="Tetragon JSON export, one record per line; - reads stdin. Env: TETRAGON_EVENTS_FILE")
+              help="Finished Tetragon JSON export, one record per line; - reads stdin to its end, so not a live "
+                   "tetra getevents pipe. Env: TETRAGON_EVENTS_FILE")
 @click.option("--ingestion-url", envvar="INGESTION_URL",
               help="Base URL of the AgentWatch REST API; required unless --dry-run. Env: INGESTION_URL")
 @click.option("--ingestion-api-key", envvar="INGESTION_API_KEY",
