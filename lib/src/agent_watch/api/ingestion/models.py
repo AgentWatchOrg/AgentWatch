@@ -3,6 +3,8 @@ from typing import Protocol
 
 from agent_watch.api.github_client import JsonObject
 
+MAXIMUM_EVENTS_PER_INGESTION_BATCH: int = 1000
+
 
 class EventValidator(Protocol):
     def validation_errors(self, event: JsonObject) -> list[str]: ...
