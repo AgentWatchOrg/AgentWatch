@@ -27,6 +27,10 @@ def clean_process_exec_event() -> JsonObject:
 
 @pytest.mark.parametrize(("text", "expected_text", "expected_rule_names"), [
     ("-H Authorization: Bearer abc123", "-H Authorization: Bearer *****", ["authorization-header"]),
+    ("-H Authorization: Splunk 0f1e2d3c-aaaa-bbbb-cccc-1234567890ab https://localhost:8088",
+     "-H Authorization: Splunk ***** https://localhost:8088", ["authorization-header"]),
+    ("-H Authorization: ApiKey k3y-v4lue", "-H Authorization: ApiKey *****", ["authorization-header"]),
+    ("-H Authorization: 0f1e2d3c-token-only", "-H Authorization: *****", ["authorization-header"]),
     ("--password=hunter2", "--password=*****", ["password-arg"]),
     ("--token 'two words'", "--token *****", ["password-arg"]),
     ("https://user:pass@host/path", "https://*****@host/path", ["url-credential"]),
@@ -50,7 +54,7 @@ def clean_process_exec_event() -> JsonObject:
     ("-H Set-Cookie: id=a3fWa; Path=/", "-H Set-Cookie: *****", ["cookie-header"]),
     ("echo cookie jar", "echo cookie jar", []),
     ("ls -la /home/agent", "ls -la /home/agent", []),
-], ids=["authorization-header", "password-arg", "quoted-token", "url-credential", "url-query", "api-key",
+], ids=["authorization-header", "splunk-scheme", "api-key-scheme", "token-without-scheme", "password-arg", "quoted-token", "url-credential", "url-query", "api-key",
         "flag-containing-secret", "user-credential", "secret-assignment", "more-token-prefixes", "api-key-header",
         "private-token-header",
         "hyphenated-word-before-flag", "hyphenated-path", "json-secret-fields",
