@@ -21,7 +21,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 def parse_tetragon_json_lines(tetragon_json_lines: str) -> tuple[list[JsonObject], int]:
     tetragon_records: list[JsonObject] = []
     malformed_line_count: int = 0
-    for line in tetragon_json_lines.splitlines():
+    for line in tetragon_json_lines.split("\n"):
         if not line.strip():
             continue
         try:
