@@ -1,3 +1,4 @@
+from itertools import islice
 from typing import Protocol
 
 from agent_watch.api.github_client import JsonObject
@@ -22,7 +23,7 @@ class InMemoryEventBuffer:
             self._unsent_events_by_id[event["event_id"]] = event
 
     def unsent_events(self, maximum_event_count: int) -> list[JsonObject]:
-        return list(self._unsent_events_by_id.values())[:maximum_event_count]
+        return list(islice(self._unsent_events_by_id.values(), maximum_event_count))
 
     def remove_events(self, event_ids: set[str]) -> None:
         for event_id in event_ids:
