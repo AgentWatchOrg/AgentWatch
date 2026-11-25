@@ -7,11 +7,11 @@ from pydantic import Field
 
 from agent_watch.api.ingestion.event_store import EventStore, InMemoryEventStore
 from agent_watch.api.ingestion.ingest_events import ingest_event_batch
-from agent_watch.api.ingestion.models import EventValidator, IngestionBatchResult
+from agent_watch.api.ingestion.models import MAXIMUM_EVENTS_PER_INGESTION_BATCH, EventValidator, IngestionBatchResult
 from agent_watch.api.ingestion.schema_validator import load_telemetry_schema_validator
 from agent_watch.rest_api.settings import INGESTION_API_KEY_ENVIRONMENT_VARIABLE, load_ingestion_api_key
 
-MAXIMUM_EVENTS_PER_BATCH: int = 1000
+MAXIMUM_EVENTS_PER_BATCH: int = MAXIMUM_EVENTS_PER_INGESTION_BATCH
 
 ingestion_router: APIRouter = APIRouter(tags=["ingestion"])
 shared_ingestion_event_store: InMemoryEventStore = InMemoryEventStore()

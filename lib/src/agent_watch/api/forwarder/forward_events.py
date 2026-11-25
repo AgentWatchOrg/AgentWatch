@@ -7,9 +7,7 @@ from agent_watch.api.forwarder.models import ForwardingResult, MalformedSensorRe
 from agent_watch.api.forwarder.normalize_tetragon_events import normalize_tetragon_record
 from agent_watch.api.forwarder.redact_event_values import redact_event
 from agent_watch.api.github_client import JsonObject
-from agent_watch.api.ingestion.models import IngestionBatchResult, RejectedEvent
-
-MAXIMUM_EVENTS_PER_BATCH: int = 1000
+from agent_watch.api.ingestion.models import MAXIMUM_EVENTS_PER_INGESTION_BATCH, IngestionBatchResult, RejectedEvent
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -40,9 +38,11 @@ def send_buffered_events(event_buffer: EventBuffer, event_batch_sender: EventBat
     rejected_events: list[RejectedEvent] = []
     duplicate_events: list[RejectedEvent] = []
     while event_buffer.unsent_event_count():
-        event_batch: list[JsonObject] = event_buffer.unsent_events(MAXIMUM_EVENTS_PER_BATCH)
+        event_batch: list[JsonObject] = event_buffer.unsent_events(MAXIMUM_EVENTS_PER_INGESTION_BATCH)
         batch_result: IngestionBatchResult = event_batch_sender.send_event_batch(event_batch)
         event_buffer.remove_events({event["event_id"] for event in event_batch})
+        logger.info("Delivered %d event(s): %d accepted, %d rejected, %d duplicate", len(event_batch),
+                    batch_result.accepted_count, len(batch_result.rejected_events), len(batch_result.duplicate_events))
         for rejected_event in batch_result.rejected_events:
             logger.warning("Ingestion rejected event %s: %s", rejected_event.event_id, rejected_event.reason)
         accepted_count += batch_result.accepted_count
