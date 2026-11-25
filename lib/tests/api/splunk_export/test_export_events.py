@@ -2,14 +2,14 @@ import http.client
 import logging
 
 import pytest
-from doubles.splunk_export_test_doubles import RecordingHecEventSender
+from doubles.splunk_export_test_doubles import EventRejectingHecEventSender, RecordingHecEventSender
 
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.event_store import InMemoryEventStore
 from agent_watch.api.splunk_export import export_events
 from agent_watch.api.splunk_export.export_events import (
     apply_hec_event_batches, build_hec_event, epoch_seconds_from_timestamp, export_unexported_events,
-    plan_hec_event_batches, requeue_unsent_events)
+    plan_hec_event_batches, requeue_unsent_events, split_in_half)
 from agent_watch.api.splunk_export.models import ExportResult, HecExportProgress, SplunkExportError
 
 PERMANENT_REJECTION: SplunkExportError = SplunkExportError("returned HTTP 413: Content too large", is_retryable=False)
@@ -90,7 +90,27 @@ def test_apply_hec_event_batches_drops_a_permanently_rejected_batch_and_continue
                                 RecordingHecEventSender(frozenset({1}), failure=PERMANENT_REJECTION), export_progress)
 
     assert export_progress == HecExportProgress(sent_event_count=1, dropped_event_count=1)
-    assert "Splunk permanently rejected 1 event(s), dropping sha256:too-big" in caplog.text
+    assert "Splunk permanently rejected event sha256:too-big, dropping it" in caplog.text
+
+
+def test_apply_hec_event_batches_splits_a_rejected_batch_to_drop_only_the_bad_event() -> None:
+    export_progress: HecExportProgress = HecExportProgress()
+    hec_event_batch: list[JsonObject] = [{"event": {"event_id": event_id}} for event_id in "abcd"]
+    sender_rejecting_c: EventRejectingHecEventSender = EventRejectingHecEventSender("c")
+
+    apply_hec_event_batches([hec_event_batch], sender_rejecting_c, export_progress)
+
+    assert sender_rejecting_c.accepted_event_ids == ["a", "b", "d"]
+    assert sender_rejecting_c.sent_batch_sizes == [4, 2, 2, 1, 1]
+    assert export_progress == HecExportProgress(sent_event_count=3, dropped_event_count=1)
+
+
+@pytest.mark.parametrize(("batch_size", "expected_halves"), [(4, [2, 2]), (5, [2, 3]), (2, [1, 1])],
+                         ids=["even", "odd", "pair"])
+def test_split_in_half(batch_size: int, expected_halves: list[int]) -> None:
+    halves: list[list[JsonObject]] = split_in_half([{"event": {}}] * batch_size)
+
+    assert [len(half) for half in halves] == expected_halves
 
 
 def test_requeue_unsent_events_puts_back_only_the_events_after_the_sent_ones(

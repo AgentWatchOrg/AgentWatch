@@ -52,19 +52,28 @@ def plan_hec_event_batches(events: list[JsonObject], index: str | None) -> list[
     return [hec_event_batch for hec_event_batch in hec_event_batches if hec_event_batch]
 
 
+def split_in_half(hec_event_batch: list[JsonObject]) -> list[list[JsonObject]]:
+    middle_index: int = len(hec_event_batch) // 2
+    return [hec_event_batch[:middle_index], hec_event_batch[middle_index:]]
+
+
 def apply_hec_event_batches(hec_event_batches: list[list[JsonObject]], hec_event_sender: HecEventSender,
                             export_progress: HecExportProgress) -> None:
-    for hec_event_batch in hec_event_batches:
+    remaining_batches: list[list[JsonObject]] = list(hec_event_batches)
+    while remaining_batches:
+        hec_event_batch: list[JsonObject] = remaining_batches.pop(0)
         try:
             hec_event_sender.send_hec_events(hec_event_batch)
         except SplunkExportError as export_error:
             if export_error.is_retryable:
                 logger.error("Splunk export failed: %s", export_error)
                 return
-            rejected_event_ids: list[str] = [str(hec_event["event"].get("event_id")) for hec_event in hec_event_batch]
-            logger.error("Splunk permanently rejected %d event(s), dropping %s: %s", len(hec_event_batch),
-                         ", ".join(rejected_event_ids), export_error)
-            export_progress.dropped_event_count += len(hec_event_batch)
+            if len(hec_event_batch) > 1:
+                remaining_batches[:0] = split_in_half(hec_event_batch)
+                continue
+            logger.error("Splunk permanently rejected event %s, dropping it: %s",
+                         hec_event_batch[0]["event"].get("event_id"), export_error)
+            export_progress.dropped_event_count += 1
             continue
         export_progress.sent_event_count += len(hec_event_batch)
 
