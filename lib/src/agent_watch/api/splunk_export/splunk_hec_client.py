@@ -6,7 +6,8 @@ import urllib.error
 import urllib.request
 
 from agent_watch.api.github_client import JsonObject
-from agent_watch.api.splunk_export.models import HEC_EVENT_PATH, SplunkExportError, SplunkHecSettings
+from agent_watch.api.splunk_export.models import (
+    HEC_EVENT_PATH, PERMANENT_REJECTION_STATUS_CODES, SplunkExportError, SplunkHecSettings)
 
 DEFAULT_REQUEST_TIMEOUT_SECONDS: float = 10.0
 MAXIMUM_ERROR_BODY_LENGTH: int = 500
@@ -38,7 +39,8 @@ class SplunkHecClient:
         except urllib.error.HTTPError as http_error:
             error_body: str = http_error.read().decode("utf-8", errors="replace")[:MAXIMUM_ERROR_BODY_LENGTH]
             raise SplunkExportError(
-                f"Splunk HEC at {self.events_url} returned HTTP {http_error.code}: {error_body}") from http_error
+                f"Splunk HEC at {self.events_url} returned HTTP {http_error.code}: {error_body}",
+                is_retryable=http_error.code not in PERMANENT_REJECTION_STATUS_CODES) from http_error
         except (urllib.error.URLError, http.client.HTTPException, OSError) as connection_error:
             raise SplunkExportError(
                 f"Could not reach Splunk HEC at {self.events_url}: {connection_error}") from connection_error

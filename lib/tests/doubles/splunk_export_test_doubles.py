@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Protocol
 
 from agent_watch.api.github_client import JsonObject
-from agent_watch.api.splunk_export.models import SplunkExportError, SplunkHecSettings
+from agent_watch.api.splunk_export.models import SplunkHecSettings
 
 TEST_HEC_TOKEN: str = "test-hec-token-do-not-log"
 
@@ -28,25 +28,6 @@ class FakeSplunkHecServer:
     response_status: int = 200
     response_body: str = '{"text":"Success","code":0}'
     should_drop_connection: bool = False
-
-
-class RecordingHecEventSender:
-    def __init__(self, failing_request_numbers: frozenset[int] = frozenset(),
-                 failure: Exception = SplunkExportError(
-                     "Could not reach Splunk HEC at https://splunk.invalid/services/collector/event")) -> None:
-        self.sent_batches: list[list[JsonObject]] = []
-        self._failing_request_numbers: frozenset[int] = failing_request_numbers
-        self._failure: Exception = failure
-        self._request_count: int = 0
-
-    def send_hec_events(self, hec_events: list[JsonObject]) -> None:
-        self._request_count += 1
-        if self._request_count in self._failing_request_numbers:
-            raise self._failure
-        self.sent_batches.append(hec_events)
-
-    def sent_events(self) -> list[JsonObject]:
-        return [hec_event["event"] for sent_batch in self.sent_batches for hec_event in sent_batch]
 
 
 def start_fake_splunk_hec_server() -> tuple[FakeSplunkHecServer, HTTPServer]:

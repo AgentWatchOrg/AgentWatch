@@ -31,6 +31,20 @@ def test_send_hec_events_reports_a_rejection_without_revealing_the_token(
         hec_client.send_hec_events([{"event": {"event_id": "a"}}])
 
     assert TEST_HEC_TOKEN not in str(raised_error.value)
+    assert raised_error.value.is_retryable is True
+
+
+@pytest.mark.parametrize("permanent_status", [400, 413])
+def test_send_hec_events_marks_bad_data_and_oversized_rejections_as_permanent(
+        permanent_status: int, fake_splunk_hec_server: FakeSplunkHecServer,
+        make_hec_settings: SplunkHecSettingsFactory) -> None:
+    fake_splunk_hec_server.response_status = permanent_status
+    hec_client: SplunkHecClient = SplunkHecClient(make_hec_settings(fake_splunk_hec_server.url))
+
+    with pytest.raises(SplunkExportError) as raised_error:
+        hec_client.send_hec_events([{"event": {"event_id": "a"}}])
+
+    assert raised_error.value.is_retryable is False
 
 
 def test_send_hec_events_reports_an_unreachable_endpoint(
