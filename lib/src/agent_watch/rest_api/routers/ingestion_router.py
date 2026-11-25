@@ -1,17 +1,20 @@
 import hmac
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from pydantic import Field
 
 from agent_watch.api.ingestion.event_store import EventStore, InMemoryEventStore
 from agent_watch.api.ingestion.ingest_events import ingest_event_batch
 from agent_watch.api.ingestion.models import MAXIMUM_EVENTS_PER_INGESTION_BATCH, EventValidator, IngestionBatchResult
 from agent_watch.api.ingestion.schema_validator import load_telemetry_schema_validator
-from agent_watch.rest_api.settings import INGESTION_API_KEY_ENVIRONMENT_VARIABLE, load_ingestion_api_key
-
-MAXIMUM_EVENTS_PER_BATCH: int = MAXIMUM_EVENTS_PER_INGESTION_BATCH
+from agent_watch.api.splunk_export.export_events import SplunkExporter
+from agent_watch.api.splunk_export.models import SplunkHecSettings
+from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient
+from agent_watch.rest_api.settings import (
+    INGESTION_API_KEY_ENVIRONMENT_VARIABLE, load_ingestion_api_key, load_splunk_hec_settings)
 
 ingestion_router: APIRouter = APIRouter(tags=["ingestion"])
 shared_ingestion_event_store: InMemoryEventStore = InMemoryEventStore()
@@ -19,7 +22,7 @@ shared_ingestion_event_store: InMemoryEventStore = InMemoryEventStore()
 
 @dataclass(frozen=True)
 class EventBatchRequest:
-    events: Annotated[list[Any], Field(max_length=MAXIMUM_EVENTS_PER_BATCH)]
+    events: Annotated[list[Any], Field(max_length=MAXIMUM_EVENTS_PER_INGESTION_BATCH)]
 
 
 def require_ingestion_api_key(x_api_key: str = Header(default="")) -> None:
@@ -40,6 +43,20 @@ def get_telemetry_schema_validator() -> EventValidator:
     return load_telemetry_schema_validator()
 
 
+def get_splunk_hec_settings() -> SplunkHecSettings | None:
+    return load_splunk_hec_settings()
+
+
+@lru_cache(maxsize=4)
+def build_splunk_exporter(hec_settings: SplunkHecSettings) -> SplunkExporter:
+    return SplunkExporter(SplunkHecClient(hec_settings), hec_settings.index)
+
+
+def get_splunk_exporter(
+        hec_settings: SplunkHecSettings | None = Depends(get_splunk_hec_settings)) -> SplunkExporter | None:
+    return build_splunk_exporter(hec_settings) if hec_settings else None
+
+
 @ingestion_router.post(
     "/v1/events", dependencies=[Depends(require_ingestion_api_key)],
     responses={
@@ -47,6 +64,11 @@ def get_telemetry_schema_validator() -> EventValidator:
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": f"The server has no {INGESTION_API_KEY_ENVIRONMENT_VARIABLE} configured."}})
 def post_events(
-        event_batch: EventBatchRequest, event_store: EventStore = Depends(get_ingestion_event_store),
-        schema_validator: EventValidator = Depends(get_telemetry_schema_validator)) -> IngestionBatchResult:
-    return ingest_event_batch(event_batch.events, schema_validator, event_store)
+        event_batch: EventBatchRequest, background_tasks: BackgroundTasks,
+        event_store: EventStore = Depends(get_ingestion_event_store),
+        schema_validator: EventValidator = Depends(get_telemetry_schema_validator),
+        splunk_exporter: SplunkExporter | None = Depends(get_splunk_exporter)) -> IngestionBatchResult:
+    batch_result: IngestionBatchResult = ingest_event_batch(event_batch.events, schema_validator, event_store)
+    if splunk_exporter:
+        background_tasks.add_task(splunk_exporter.export_waiting_events, event_store)
+    return batch_result

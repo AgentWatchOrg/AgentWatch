@@ -4,13 +4,14 @@ from typing import Iterator
 
 import pytest
 from doubles.splunk_export_test_doubles import (
-    EventRejectingHecEventSender, HecEventBatchFactory, RecordingHecEventSender, RecordingHecEventSenderFactory)
+    EventRejectingHecEventSender, HecEventBatchFactory, RecordingHecEventSender, RecordingHecEventSenderFactory,
+    StoreFeedingHecEventSender)
 
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.event_store import InMemoryEventStore
 from agent_watch.api.splunk_export import export_events
 from agent_watch.api.splunk_export.export_events import (
-    apply_hec_event_batches, build_hec_event, epoch_seconds_from_timestamp, export_unexported_events,
+    SplunkExporter, apply_hec_event_batches, build_hec_event, epoch_seconds_from_timestamp, export_unexported_events,
     plan_hec_event_batches, requeue_unsent_events, split_in_half)
 from agent_watch.api.splunk_export.models import ExportResult, HecExportProgress, SplunkExportError
 
@@ -58,6 +59,50 @@ def make_recording_hec_event_sender() -> RecordingHecEventSenderFactory:
 @pytest.fixture
 def sender_rejecting_event_c() -> EventRejectingHecEventSender:
     return EventRejectingHecEventSender("c")
+
+
+@pytest.fixture
+def splunk_exporter(recording_hec_event_sender: RecordingHecEventSender) -> SplunkExporter:
+    return SplunkExporter(recording_hec_event_sender, index=None)
+
+
+@pytest.fixture
+def event_store_with_one_process_exec_event(
+        event_store: InMemoryEventStore, valid_process_exec_event: JsonObject) -> InMemoryEventStore:
+    event_store.add(valid_process_exec_event["event_id"], valid_process_exec_event)
+    return event_store
+
+
+@pytest.fixture
+def sender_accepting_a_file_access_event_mid_export(
+        event_store_with_one_process_exec_event: InMemoryEventStore,
+        valid_file_access_event: JsonObject) -> StoreFeedingHecEventSender:
+    return StoreFeedingHecEventSender(event_store_with_one_process_exec_event, valid_file_access_event)
+
+
+@pytest.fixture
+def exporter_with_a_dropped_connection(
+        make_recording_hec_event_sender: RecordingHecEventSenderFactory) -> SplunkExporter:
+    return SplunkExporter(make_recording_hec_event_sender(
+        frozenset({1}), failure=http.client.RemoteDisconnected("Remote end closed connection without response")),
+        index=None)
+
+
+@pytest.fixture
+def exporter_accepting_an_event_mid_export(
+        sender_accepting_a_file_access_event_mid_export: StoreFeedingHecEventSender) -> SplunkExporter:
+    return SplunkExporter(sender_accepting_a_file_access_event_mid_export, index=None)
+
+
+@pytest.fixture
+def sender_failing_first_request(
+        make_recording_hec_event_sender: RecordingHecEventSenderFactory) -> RecordingHecEventSender:
+    return make_recording_hec_event_sender(frozenset({1}))
+
+
+@pytest.fixture
+def exporter_failing_first_request(sender_failing_first_request: RecordingHecEventSender) -> SplunkExporter:
+    return SplunkExporter(sender_failing_first_request, index=None)
 
 
 @pytest.fixture
@@ -237,3 +282,59 @@ def test_export_unexported_events_sends_nothing_when_no_events_are_waiting(
 
     assert export_result == ExportResult(exported_event_count=0, dropped_event_count=0, failed_event_count=0)
     assert recording_hec_event_sender.sent_batches == []
+
+
+def test_splunk_exporter_exports_the_waiting_events(
+        splunk_exporter: SplunkExporter, event_store_with_accepted_events: InMemoryEventStore,
+        recording_hec_event_sender: RecordingHecEventSender, accepted_events: list[JsonObject]) -> None:
+    export_result: ExportResult | None = splunk_exporter.export_waiting_events(event_store_with_accepted_events)
+
+    assert export_result == ExportResult(exported_event_count=2, dropped_event_count=0, failed_event_count=0)
+    assert recording_hec_event_sender.sent_events() == accepted_events
+
+
+def test_splunk_exporter_skips_while_another_export_is_running(
+        splunk_exporter: SplunkExporter, event_store_with_accepted_events: InMemoryEventStore,
+        recording_hec_event_sender: RecordingHecEventSender, accepted_events: list[JsonObject]) -> None:
+    splunk_exporter._export_lock.acquire()
+
+    export_result: ExportResult | None = splunk_exporter.export_waiting_events(event_store_with_accepted_events)
+
+    splunk_exporter._export_lock.release()
+    assert export_result is None
+    assert recording_hec_event_sender.sent_batches == []
+    assert event_store_with_accepted_events.pop_unexported_events() == accepted_events
+
+
+def test_splunk_exporter_allows_the_next_export_after_an_unexpected_error(
+        event_store_with_accepted_events: InMemoryEventStore,
+        exporter_with_a_dropped_connection: SplunkExporter) -> None:
+    with pytest.raises(http.client.RemoteDisconnected):
+        exporter_with_a_dropped_connection.export_waiting_events(event_store_with_accepted_events)
+
+    assert exporter_with_a_dropped_connection._export_lock.locked() is False
+
+
+def test_splunk_exporter_also_exports_events_accepted_while_it_runs(
+        event_store_with_one_process_exec_event: InMemoryEventStore,
+        sender_accepting_a_file_access_event_mid_export: StoreFeedingHecEventSender,
+        exporter_accepting_an_event_mid_export: SplunkExporter, valid_process_exec_event: JsonObject,
+        valid_file_access_event: JsonObject) -> None:
+    export_result: ExportResult | None = exporter_accepting_an_event_mid_export.export_waiting_events(
+        event_store_with_one_process_exec_event)
+
+    assert export_result == ExportResult(exported_event_count=2, dropped_event_count=0, failed_event_count=0)
+    assert sender_accepting_a_file_access_event_mid_export.sent_events() == [
+        valid_process_exec_event, valid_file_access_event]
+    assert event_store_with_one_process_exec_event.pop_unexported_events() == []
+
+
+def test_export_until_nothing_is_waiting_stops_at_the_first_failure(
+        event_store_with_accepted_events: InMemoryEventStore, accepted_events: list[JsonObject],
+        sender_failing_first_request: RecordingHecEventSender, exporter_failing_first_request: SplunkExporter) -> None:
+    export_result: ExportResult = exporter_failing_first_request.export_until_nothing_is_waiting(
+        event_store_with_accepted_events)
+
+    assert export_result == ExportResult(exported_event_count=0, dropped_event_count=0, failed_event_count=2)
+    assert sender_failing_first_request.sent_batches == []
+    assert event_store_with_accepted_events.pop_unexported_events() == accepted_events

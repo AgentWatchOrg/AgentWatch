@@ -10,7 +10,7 @@ FastAPI app in `lib/src/agent_watch/rest_api/` (package `agent_watch.rest_api`, 
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/health` | `{"status": "ok"}` |
-| POST | `/v1/events` | `IngestionBatchResult`: how many of the batch's events were accepted, rejected (with a reason), or were duplicates of an already-accepted event. Requires an `X-Api-Key` header matching `AGENT_WATCH_INGESTION_API_KEY`. At most 1000 events per batch. Accepted events are held only in memory, pending export (see [the v1 telemetry contract](../telemetry-v1.md)); **they do not survive a restart**, so a forwarder should not drop its buffered copy until export (#61) lands. |
+| POST | `/v1/events` | `IngestionBatchResult`: how many of the batch's events were accepted, rejected (with a reason), or were duplicates of an already-accepted event. Requires an `X-Api-Key` header matching `AGENT_WATCH_INGESTION_API_KEY`. At most 1000 events per batch. Accepted events are held only in memory until they are [exported to Splunk](splunk.md#export-agentwatch-telemetry); **they do not survive a restart**. |
 
 ## Secrets
 The server's secrets live only in GitHub repository secrets. Never set them in AWS by hand.
