@@ -138,17 +138,19 @@ def test_first_argument_value_skips_arguments_that_are_not_objects() -> None:
     ("security_file_permission", 4, "read"),
     ("security_file_permission", 2, "write"),
     ("security_file_permission", 6, "read_write"),
-    ("security_file_permission", 1, "open"),
-    ("security_file_permission", None, "open"),
+    ("security_file_permission", 1, None),
+    ("security_file_permission", None, None),
     ("security_file_open", 4, "open"),
-], ids=["read", "write", "read-write", "execute-only", "no-mask", "open-hook"])
-def test_file_operation_name(function_name: str, access_mask: int | None, expected_operation: str) -> None:
+    ("security_file_open", None, "open"),
+], ids=["read", "write", "read-write", "execute-only", "no-mask", "open-hook", "open-hook-no-mask"])
+def test_file_operation_name(function_name: str, access_mask: int | None, expected_operation: str | None) -> None:
     assert file_operation_name(function_name, access_mask) == expected_operation
 
 
 @pytest.mark.parametrize(("mode_text", "expected_permission"), [
-    ("-rw-r--r--", 420), ("-rwxr-xr-x", 493), ("-rwsr-xr-T", 492), ("rw-", None), (None, None),
-], ids=["0644", "0755", "special-bits", "too-short", "missing"])
+    ("-rw-r--r--", 0o644), ("-rwxr-xr-x", 0o755), ("-rwsr-xr-x", 0o4755), ("-rwxr-sr-x", 0o2755),
+    ("drwxrwxrwt", 0o1777), ("-rwSr-xr-T", 0o5654), ("rw-", None), (None, None),
+], ids=["0644", "0755", "setuid", "setgid", "sticky", "special-bits-without-execute", "too-short", "missing"])
 def test_permission_bits_from_mode_text(mode_text: str | None, expected_permission: int | None) -> None:
     assert permission_bits_from_mode_text(mode_text) == expected_permission
 
