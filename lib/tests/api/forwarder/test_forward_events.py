@@ -10,7 +10,8 @@ from agent_watch.api.forwarder import forward_events
 from agent_watch.api.forwarder.assign_event_identities import EventIdentityAssigner
 from agent_watch.api.forwarder.event_buffer import InMemoryEventBuffer
 from agent_watch.api.forwarder.forward_events import (
-    apply_event_forwarding, forward_tetragon_records, plan_event_forwarding, send_buffered_events)
+    apply_event_forwarding, forward_tetragon_export, forward_tetragon_records, plan_event_forwarding,
+    send_buffered_events)
 from agent_watch.api.forwarder.ingestion_client import IngestionClient
 from agent_watch.api.forwarder.models import ForwardingResult, IngestionRequestError, PlannedForwarding
 from agent_watch.api.github_client import JsonObject
@@ -114,3 +115,14 @@ def test_forward_tetragon_records_delivers_every_event_type_to_ingestion(
     resend_result: IngestionBatchResult = apply_event_forwarding(
         plan_event_forwarding(tetragon_records, EventIdentityAssigner()), event_buffer, ingestion_client)
     assert len(resend_result.duplicate_events) == 3
+
+
+def test_forward_tetragon_export_parses_the_lines_and_counts_the_malformed_ones(
+        load_tetragon_record: TetragonRecordLoader, identity_assigner: EventIdentityAssigner,
+        event_buffer: InMemoryEventBuffer) -> None:
+    tetragon_json_lines: str = json.dumps(load_tetragon_record("process-exec")) + "\nnot json\n"
+
+    result: ForwardingResult = forward_tetragon_export(
+        tetragon_json_lines, identity_assigner, event_buffer, event_batch_sender=None)
+
+    assert (result.planned_event_count, result.malformed_line_count) == (1, 1)

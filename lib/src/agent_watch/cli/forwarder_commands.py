@@ -5,11 +5,9 @@ import click
 
 from agent_watch.api.forwarder.assign_event_identities import EventIdentityAssigner
 from agent_watch.api.forwarder.event_buffer import InMemoryEventBuffer
-from agent_watch.api.forwarder.forward_events import forward_tetragon_records
+from agent_watch.api.forwarder.forward_events import forward_tetragon_export
 from agent_watch.api.forwarder.ingestion_client import IngestionClient
 from agent_watch.api.forwarder.models import ForwardingResult, IngestionRequestError
-from agent_watch.api.forwarder.normalize_tetragon_events import parse_tetragon_json_lines
-from agent_watch.api.github_client import JsonObject
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -38,17 +36,14 @@ def forward_tetragon_events_command(tetragon_events_file: TextIO, ingestion_url:
         if not ingestion_url or not ingestion_api_key:
             raise click.UsageError("--ingestion-url and --ingestion-api-key are required unless --dry-run is set")
         ingestion_client = IngestionClient(ingestion_url, ingestion_api_key)
-    tetragon_records: list[JsonObject]
-    malformed_line_count: int
-    tetragon_records, malformed_line_count = parse_tetragon_json_lines(tetragon_events_file.read())
-    if malformed_line_count:
-        logger.warning(f"Skipped {malformed_line_count} line(s) that are not JSON objects")
     try:
-        result: ForwardingResult = forward_tetragon_records(
-            tetragon_records, EventIdentityAssigner(), InMemoryEventBuffer(), ingestion_client)
+        result: ForwardingResult = forward_tetragon_export(
+            tetragon_events_file.read(), EventIdentityAssigner(), InMemoryEventBuffer(), ingestion_client)
     except IngestionRequestError as request_error:
         logger.error(f"Delivery failed: {request_error}")
         raise SystemExit(1) from request_error
+    if result.malformed_line_count:
+        logger.warning(f"Skipped {result.malformed_line_count} line(s) that are not JSON objects")
     logger.info(f"{result.planned_event_count} event(s) planned, {result.skipped_record_count} record(s) skipped"
                 f"{' (dry run)' if is_dry_run else ''}")
     if not is_dry_run:

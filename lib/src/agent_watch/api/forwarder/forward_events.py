@@ -5,7 +5,7 @@ from typing import Protocol
 from agent_watch.api.forwarder.assign_event_identities import EventIdentityAssigner
 from agent_watch.api.forwarder.event_buffer import EventBuffer
 from agent_watch.api.forwarder.models import ForwardingResult, MalformedSensorRecordError, PlannedForwarding
-from agent_watch.api.forwarder.normalize_tetragon_events import normalize_tetragon_record
+from agent_watch.api.forwarder.normalize_tetragon_events import normalize_tetragon_record, parse_tetragon_json_lines
 from agent_watch.api.forwarder.redact_event_values import redact_event
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.models import MAXIMUM_EVENTS_PER_INGESTION_BATCH, IngestionBatchResult, RejectedEvent
@@ -75,3 +75,14 @@ def forward_tetragon_records(
         skipped_record_count=planned_forwarding.skipped_record_count,
         accepted_count=delivery_result.accepted_count, rejected_events=delivery_result.rejected_events,
         duplicate_events=delivery_result.duplicate_events, unsent_event_count=event_buffer.unsent_event_count())
+
+
+def forward_tetragon_export(
+        tetragon_json_lines: str, identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
+        event_batch_sender: EventBatchSender | None) -> ForwardingResult:
+    tetragon_records: list[JsonObject]
+    malformed_line_count: int
+    tetragon_records, malformed_line_count = parse_tetragon_json_lines(tetragon_json_lines)
+    forwarding_result: ForwardingResult = forward_tetragon_records(
+        tetragon_records, identity_assigner, event_buffer, event_batch_sender)
+    return replace(forwarding_result, malformed_line_count=malformed_line_count)
