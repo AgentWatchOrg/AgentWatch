@@ -1,5 +1,6 @@
 import click
 
+from agent_watch.cli.forwarder_commands import forwarder
 from agent_watch.cli.project_board_commands import project_board
 from agent_watch.cli.pull_request_review_commands import pull_request_review
 from agent_watch.logging_configuration import (
@@ -13,5 +14,6 @@ def agent_watch(log_level: str) -> None:
     configure_logging(log_level)
 
 
+agent_watch.add_command(forwarder)
 agent_watch.add_command(project_board)
 agent_watch.add_command(pull_request_review)
