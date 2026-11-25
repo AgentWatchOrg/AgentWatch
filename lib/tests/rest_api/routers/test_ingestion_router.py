@@ -1,9 +1,10 @@
 import logging
-import socket
+import urllib.error
+import urllib.request
 from typing import Iterator
 
 import pytest
-from doubles.splunk_export_test_doubles import TEST_HEC_TOKEN, RecordingHecEventSender
+from doubles.splunk_export_test_doubles import TEST_HEC_TOKEN, RecordingHecEventSender, ScriptedHecUrlopen
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from httpx2 import Response
@@ -15,8 +16,8 @@ from agent_watch.api.splunk_export.models import SplunkHecSettings
 from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient
 from agent_watch.rest_api.application import application
 from agent_watch.rest_api.routers.ingestion_router import (
-    MAXIMUM_EVENTS_PER_BATCH, get_ingestion_event_store, get_splunk_hec_client, get_splunk_hec_settings,
-    require_ingestion_api_key)
+    MAXIMUM_EVENTS_PER_BATCH, build_splunk_hec_client, get_ingestion_event_store, get_splunk_hec_client,
+    get_splunk_hec_settings, require_ingestion_api_key)
 from agent_watch.rest_api.settings import INGESTION_API_KEY_ENVIRONMENT_VARIABLE, SPLUNK_HEC_URL_ENVIRONMENT_VARIABLE
 
 API_KEY_HEADER_NAME: str = "X-Api-Key"
@@ -159,25 +160,41 @@ def splunk_hec_settings() -> SplunkHecSettings:
 
 
 @pytest.fixture
-def unreachable_splunk_hec_settings() -> Iterator[SplunkHecSettings]:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as unused_socket:
-        unused_socket.bind(("127.0.0.1", 0))
-        unused_port: int = unused_socket.getsockname()[1]
-    unreachable_settings: SplunkHecSettings = SplunkHecSettings(
-        hec_url=f"http://127.0.0.1:{unused_port}", hec_token=TEST_HEC_TOKEN, index=None, should_verify_tls=True)
-    application.dependency_overrides[get_splunk_hec_settings] = lambda: unreachable_settings
-    yield unreachable_settings
+def unreachable_splunk(
+        monkeypatch: pytest.MonkeyPatch, splunk_hec_settings: SplunkHecSettings) -> Iterator[ScriptedHecUrlopen]:
+    unreachable_urlopen: ScriptedHecUrlopen = ScriptedHecUrlopen()
+    unreachable_urlopen.failure = urllib.error.URLError("[Errno 111] Connection refused")
+    monkeypatch.setattr(urllib.request, "urlopen", unreachable_urlopen)
+    application.dependency_overrides[get_splunk_hec_settings] = lambda: splunk_hec_settings
+    yield unreachable_urlopen
     del application.dependency_overrides[get_splunk_hec_settings]
+
+
+def override_splunk_export(
+        splunk_hec_settings: SplunkHecSettings, recording_sender: RecordingHecEventSender) -> None:
+    application.dependency_overrides[get_splunk_hec_settings] = lambda: splunk_hec_settings
+    application.dependency_overrides[get_splunk_hec_client] = lambda: recording_sender
+
+
+def remove_splunk_export_override() -> None:
+    del application.dependency_overrides[get_splunk_hec_settings]
+    del application.dependency_overrides[get_splunk_hec_client]
 
 
 @pytest.fixture
 def recording_splunk_export(splunk_hec_settings: SplunkHecSettings) -> Iterator[RecordingHecEventSender]:
     recording_sender: RecordingHecEventSender = RecordingHecEventSender()
-    application.dependency_overrides[get_splunk_hec_settings] = lambda: splunk_hec_settings
-    application.dependency_overrides[get_splunk_hec_client] = lambda: recording_sender
+    override_splunk_export(splunk_hec_settings, recording_sender)
     yield recording_sender
-    del application.dependency_overrides[get_splunk_hec_settings]
-    del application.dependency_overrides[get_splunk_hec_client]
+    remove_splunk_export_override()
+
+
+@pytest.fixture
+def splunk_export_failing_once(splunk_hec_settings: SplunkHecSettings) -> Iterator[RecordingHecEventSender]:
+    sender_failing_first_request: RecordingHecEventSender = RecordingHecEventSender(frozenset({1}))
+    override_splunk_export(splunk_hec_settings, sender_failing_first_request)
+    yield sender_failing_first_request
+    remove_splunk_export_override()
 
 
 @pytest.fixture
@@ -211,7 +228,7 @@ def test_post_events_does_not_export_rejected_or_duplicate_events(
 
 def test_post_events_keeps_accepting_and_logs_an_error_when_splunk_is_unreachable(
         api_client: TestClient, authorized_headers: dict[str, str], isolated_event_store: InMemoryEventStore,
-        unreachable_splunk_hec_settings: SplunkHecSettings, valid_process_exec_event: JsonObject,
+        unreachable_splunk: ScriptedHecUrlopen, valid_process_exec_event: JsonObject,
         caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(logging.getLogger("agent_watch"), "propagate", True)
 
@@ -222,7 +239,20 @@ def test_post_events_keeps_accepting_and_logs_an_error_when_splunk_is_unreachabl
     assert response.json()["accepted_count"] == 1
     assert "Splunk export failed: Could not reach Splunk HEC" in caplog.text
     assert TEST_HEC_TOKEN not in caplog.text
+    assert len(unreachable_splunk.sent_requests) == 1
     assert isolated_event_store.pop_unexported_events() == [valid_process_exec_event]
+
+
+def test_post_events_retries_held_events_even_when_a_batch_has_only_duplicates(
+        api_client: TestClient, authorized_headers: dict[str, str], isolated_event_store: InMemoryEventStore,
+        splunk_export_failing_once: RecordingHecEventSender, valid_process_exec_event: JsonObject) -> None:
+    api_client.post("/v1/events", json={"events": [valid_process_exec_event]}, headers=authorized_headers)
+
+    response: Response = api_client.post(
+        "/v1/events", json={"events": [valid_process_exec_event]}, headers=authorized_headers)
+
+    assert len(response.json()["duplicate_events"]) == 1
+    assert splunk_export_failing_once.sent_events() == [valid_process_exec_event]
 
 
 def test_post_events_does_not_export_when_splunk_is_not_configured(
@@ -239,6 +269,10 @@ def test_get_splunk_hec_client_builds_a_client_only_when_splunk_is_configured(
         splunk_hec_settings: SplunkHecSettings) -> None:
     assert isinstance(get_splunk_hec_client(splunk_hec_settings), SplunkHecClient)
     assert get_splunk_hec_client(None) is None
+
+
+def test_build_splunk_hec_client_reuses_one_client_per_configuration(splunk_hec_settings: SplunkHecSettings) -> None:
+    assert build_splunk_hec_client(splunk_hec_settings) is build_splunk_hec_client(splunk_hec_settings)
 
 
 def test_get_splunk_hec_settings_reads_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:

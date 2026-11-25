@@ -1,5 +1,6 @@
 import hmac
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
@@ -48,9 +49,14 @@ def get_splunk_hec_settings() -> SplunkHecSettings | None:
     return load_splunk_hec_settings()
 
 
+@lru_cache(maxsize=4)
+def build_splunk_hec_client(hec_settings: SplunkHecSettings) -> SplunkHecClient:
+    return SplunkHecClient(hec_settings)
+
+
 def get_splunk_hec_client(
         hec_settings: SplunkHecSettings | None = Depends(get_splunk_hec_settings)) -> HecEventSender | None:
-    return SplunkHecClient(hec_settings) if hec_settings else None
+    return build_splunk_hec_client(hec_settings) if hec_settings else None
 
 
 @ingestion_router.post(
@@ -66,6 +72,6 @@ def post_events(
         hec_settings: SplunkHecSettings | None = Depends(get_splunk_hec_settings),
         hec_event_sender: HecEventSender | None = Depends(get_splunk_hec_client)) -> IngestionBatchResult:
     batch_result: IngestionBatchResult = ingest_event_batch(event_batch.events, schema_validator, event_store)
-    if hec_settings and hec_event_sender and batch_result.accepted_count:
+    if hec_settings and hec_event_sender:
         background_tasks.add_task(export_unexported_events, event_store, hec_event_sender, hec_settings.index)
     return batch_result

@@ -48,7 +48,9 @@ After `POST /v1/events` accepts events, the [web server](web-server.md) sends th
 | `AGENT_WATCH_SPLUNK_INDEX` | Index to write to. When unset, the token's default index (`main` locally). |
 | `AGENT_WATCH_SPLUNK_HEC_VERIFY_TLS` | `false` skips certificate checks, for the local self-signed certificate only. |
 
-A failed export logs `Splunk export failed: …` at error level without the token, and the events wait in memory for the next accepted batch. They are lost on restart.
+A failed export logs `Splunk export failed: …` at error level without the token. The events wait in memory and are retried with the next batch the endpoint receives, even one that holds only duplicates. They are lost on restart. A batch Splunk rejects because of its data (HTTP 413, or 400 with HEC code 5, 6, 12, 13, or 15) is split until the bad event is found; that event is logged with its `event_id` and dropped.
+
+The deployed web server has no Splunk settings yet, so it does not export.
 
 Run the API against local Splunk and submit one fixture of each type:
 
@@ -73,6 +75,8 @@ sourcetype="agentwatch:telemetry" event_id="sha256:6f1d6a44"
 | eval host=mvdedup(host)
 | table _time host event_id activity_type target outcome agent.attribution_status agent.session_id
 ```
+
+`host` and `source` each hold two values: one from the HEC metadata and one from the event itself, so `source` is both `agentwatch:ingestion` and the sensor name. `mvdedup` shows `host` once.
 
 The fixture IDs are `sha256:6f1d6a44` (`process_exec`), `sha256:ab41fd22` (`file_access`), and `sha256:fe90cc11` (`network_connect`). Run `docker compose stop splunk` and submit a new event to see the export failure in the API log.
 
