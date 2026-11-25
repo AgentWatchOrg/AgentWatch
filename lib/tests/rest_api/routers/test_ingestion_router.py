@@ -1,16 +1,23 @@
+import logging
+import socket
 from typing import Iterator
 
 import pytest
+from doubles.splunk_export_test_doubles import TEST_HEC_TOKEN, RecordingHecEventSender
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from httpx2 import Response
+from telemetry_fixture_paths import VALID_FIXTURE_DIRECTORY, load_json_object
 
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.event_store import InMemoryEventStore
+from agent_watch.api.splunk_export.models import SplunkHecSettings
+from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient
 from agent_watch.rest_api.application import application
 from agent_watch.rest_api.routers.ingestion_router import (
-    MAXIMUM_EVENTS_PER_BATCH, get_ingestion_event_store, require_ingestion_api_key)
-from agent_watch.rest_api.settings import INGESTION_API_KEY_ENVIRONMENT_VARIABLE
+    MAXIMUM_EVENTS_PER_BATCH, get_ingestion_event_store, get_splunk_hec_client, get_splunk_hec_settings,
+    require_ingestion_api_key)
+from agent_watch.rest_api.settings import INGESTION_API_KEY_ENVIRONMENT_VARIABLE, SPLUNK_HEC_URL_ENVIRONMENT_VARIABLE
 
 API_KEY_HEADER_NAME: str = "X-Api-Key"
 CONFIGURED_API_KEY: str = "test-ingestion-key"
@@ -143,3 +150,98 @@ def test_post_events_makes_newly_accepted_events_available_for_export(
     api_client.post("/v1/events", json={"events": [valid_process_exec_event]}, headers=authorized_headers)
 
     assert isolated_event_store.pop_unexported_events() == [valid_process_exec_event]
+
+
+@pytest.fixture
+def splunk_hec_settings() -> SplunkHecSettings:
+    return SplunkHecSettings(hec_url="https://splunk.invalid:8088", hec_token=TEST_HEC_TOKEN, index=None,
+                             should_verify_tls=True)
+
+
+@pytest.fixture
+def unreachable_splunk_hec_settings() -> Iterator[SplunkHecSettings]:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as unused_socket:
+        unused_socket.bind(("127.0.0.1", 0))
+        unused_port: int = unused_socket.getsockname()[1]
+    unreachable_settings: SplunkHecSettings = SplunkHecSettings(
+        hec_url=f"http://127.0.0.1:{unused_port}", hec_token=TEST_HEC_TOKEN, index=None, should_verify_tls=True)
+    application.dependency_overrides[get_splunk_hec_settings] = lambda: unreachable_settings
+    yield unreachable_settings
+    del application.dependency_overrides[get_splunk_hec_settings]
+
+
+@pytest.fixture
+def recording_splunk_export(splunk_hec_settings: SplunkHecSettings) -> Iterator[RecordingHecEventSender]:
+    recording_sender: RecordingHecEventSender = RecordingHecEventSender()
+    application.dependency_overrides[get_splunk_hec_settings] = lambda: splunk_hec_settings
+    application.dependency_overrides[get_splunk_hec_client] = lambda: recording_sender
+    yield recording_sender
+    del application.dependency_overrides[get_splunk_hec_settings]
+    del application.dependency_overrides[get_splunk_hec_client]
+
+
+@pytest.fixture
+def valid_network_connect_event() -> JsonObject:
+    return load_json_object(VALID_FIXTURE_DIRECTORY / "network-connect.json")
+
+
+def test_post_events_exports_each_accepted_event_type_to_splunk(
+        api_client: TestClient, authorized_headers: dict[str, str], isolated_event_store: InMemoryEventStore,
+        recording_splunk_export: RecordingHecEventSender, valid_process_exec_event: JsonObject,
+        valid_file_access_event: JsonObject, valid_network_connect_event: JsonObject) -> None:
+    events: list[JsonObject] = [valid_process_exec_event, valid_file_access_event, valid_network_connect_event]
+
+    api_client.post("/v1/events", json={"events": events}, headers=authorized_headers)
+
+    assert recording_splunk_export.sent_events() == events
+    assert isolated_event_store.pop_unexported_events() == []
+
+
+def test_post_events_does_not_export_rejected_or_duplicate_events(
+        api_client: TestClient, authorized_headers: dict[str, str], isolated_event_store: InMemoryEventStore,
+        recording_splunk_export: RecordingHecEventSender, valid_process_exec_event: JsonObject,
+        valid_file_access_event: JsonObject, invalid_missing_event_id_event: JsonObject) -> None:
+    api_client.post("/v1/events", json={"events": [valid_process_exec_event]}, headers=authorized_headers)
+
+    api_client.post("/v1/events", headers=authorized_headers, json={
+        "events": [invalid_missing_event_id_event, valid_process_exec_event, valid_file_access_event]})
+
+    assert recording_splunk_export.sent_events() == [valid_process_exec_event, valid_file_access_event]
+
+
+def test_post_events_keeps_accepting_and_logs_an_error_when_splunk_is_unreachable(
+        api_client: TestClient, authorized_headers: dict[str, str], isolated_event_store: InMemoryEventStore,
+        unreachable_splunk_hec_settings: SplunkHecSettings, valid_process_exec_event: JsonObject,
+        caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(logging.getLogger("agent_watch"), "propagate", True)
+
+    with caplog.at_level(logging.ERROR, logger="agent_watch"):
+        response: Response = api_client.post(
+            "/v1/events", json={"events": [valid_process_exec_event]}, headers=authorized_headers)
+
+    assert response.json()["accepted_count"] == 1
+    assert "Splunk export failed: Could not reach Splunk HEC" in caplog.text
+    assert TEST_HEC_TOKEN not in caplog.text
+    assert isolated_event_store.pop_unexported_events() == [valid_process_exec_event]
+
+
+def test_post_events_does_not_export_when_splunk_is_not_configured(
+        api_client: TestClient, authorized_headers: dict[str, str], isolated_event_store: InMemoryEventStore,
+        monkeypatch: pytest.MonkeyPatch, valid_process_exec_event: JsonObject) -> None:
+    monkeypatch.delenv(SPLUNK_HEC_URL_ENVIRONMENT_VARIABLE, raising=False)
+
+    api_client.post("/v1/events", json={"events": [valid_process_exec_event]}, headers=authorized_headers)
+
+    assert isolated_event_store.pop_unexported_events() == [valid_process_exec_event]
+
+
+def test_get_splunk_hec_client_builds_a_client_only_when_splunk_is_configured(
+        splunk_hec_settings: SplunkHecSettings) -> None:
+    assert isinstance(get_splunk_hec_client(splunk_hec_settings), SplunkHecClient)
+    assert get_splunk_hec_client(None) is None
+
+
+def test_get_splunk_hec_settings_reads_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(SPLUNK_HEC_URL_ENVIRONMENT_VARIABLE, raising=False)
+
+    assert get_splunk_hec_settings() is None
