@@ -6,7 +6,7 @@ from doubles.forwarder_test_doubles import TetragonRecordLoader
 from agent_watch.api.forwarder.models import MalformedSensorRecordError
 from agent_watch.api.forwarder.normalize_tetragon_events import (
     build_process_fields, build_v1_event, file_operation_name, first_argument_value, first_object_argument,
-    kprobe_outcome, network_target, normalize_file_access, normalize_network_connect, normalize_process_exec,
+    is_startup_process_scan, kprobe_outcome, network_target, normalize_file_access, normalize_network_connect, normalize_process_exec,
     normalize_tetragon_record, parse_tetragon_json_lines, permission_bits_from_mode_text, present_fields,
     require_object, require_text, valid_port)
 from agent_watch.api.github_client import JsonObject
@@ -48,6 +48,16 @@ def test_normalize_tetragon_record_produces_a_schema_valid_event_for_each_suppor
 def test_normalize_tetragon_record_skips_an_unsupported_event_type(
         load_tetragon_record: TetragonRecordLoader) -> None:
     assert normalize_tetragon_record(load_tetragon_record("process-exit")) is None
+
+
+@pytest.mark.parametrize(("process_flags", "is_expected_startup_scan"), [
+    ("procFS cwd", True), ("execve clone", False), (None, False)], ids=["proc-scan", "real-exec", "no-flags"])
+def test_is_startup_process_scan(process_flags: str | None, is_expected_startup_scan: bool) -> None:
+    tetragon_record: JsonObject = {"process_exec": {"process": {"binary": "/usr/sbin/sshd", "flags": process_flags}},
+                                   "node_name": "host", "time": "2026-11-18T12:00:00Z"}
+
+    assert is_startup_process_scan(tetragon_record) is is_expected_startup_scan
+    assert (normalize_tetragon_record(tetragon_record) is None) is is_expected_startup_scan
 
 
 def test_normalize_tetragon_record_skips_an_unsupported_kprobe(
