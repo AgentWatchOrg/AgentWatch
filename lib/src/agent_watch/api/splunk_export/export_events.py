@@ -27,12 +27,24 @@ class SplunkExporter:
 
     def export_waiting_events(self, event_store: EventStore) -> ExportResult | None:
         if not self._export_lock.acquire(blocking=False):
-            logger.debug("A Splunk export is already running; the waiting events go with the next one")
+            logger.debug("A Splunk export is already running and will also send the events waiting now")
             return None
         try:
-            return export_unexported_events(event_store, self._hec_event_sender, self._index)
+            return self.export_until_nothing_is_waiting(event_store)
         finally:
             self._export_lock.release()
+
+    def export_until_nothing_is_waiting(self, event_store: EventStore) -> ExportResult:
+        exported_event_count: int = 0
+        dropped_event_count: int = 0
+        while True:
+            pass_result: ExportResult = export_unexported_events(event_store, self._hec_event_sender, self._index)
+            exported_event_count += pass_result.exported_event_count
+            dropped_event_count += pass_result.dropped_event_count
+            handled_event_count: int = pass_result.exported_event_count + pass_result.dropped_event_count
+            if pass_result.failed_event_count or not handled_event_count:
+                return ExportResult(exported_event_count=exported_event_count, dropped_event_count=dropped_event_count,
+                                    failed_event_count=pass_result.failed_event_count)
 
 
 def epoch_seconds_from_timestamp(timestamp: str) -> float | None:

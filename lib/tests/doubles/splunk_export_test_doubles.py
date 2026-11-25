@@ -8,6 +8,7 @@ from types import TracebackType
 from typing import Protocol
 
 from agent_watch.api.github_client import JsonObject
+from agent_watch.api.ingestion.event_store import InMemoryEventStore
 from agent_watch.api.splunk_export.models import SplunkExportError, SplunkHecSettings
 
 TEST_HEC_TOKEN: str = "test-hec-token-do-not-log"
@@ -84,6 +85,22 @@ class EventRejectingHecEventSender:
         if self._rejected_event_id in event_ids:
             raise SplunkExportError("returned HTTP 400: Invalid data format", is_retryable=False)
         self.accepted_event_ids += event_ids
+
+
+class StoreFeedingHecEventSender:
+    def __init__(self, event_store: InMemoryEventStore, event_accepted_during_export: JsonObject) -> None:
+        self.sent_batches: list[list[JsonObject]] = []
+        self._event_store: InMemoryEventStore = event_store
+        self._event_accepted_during_export: JsonObject | None = event_accepted_during_export
+
+    def send_hec_events(self, hec_events: list[JsonObject]) -> None:
+        self.sent_batches.append(hec_events)
+        if self._event_accepted_during_export is not None:
+            self._event_store.add(self._event_accepted_during_export["event_id"], self._event_accepted_during_export)
+            self._event_accepted_during_export = None
+
+    def sent_events(self) -> list[JsonObject]:
+        return [hec_event["event"] for sent_batch in self.sent_batches for hec_event in sent_batch]
 
 
 def build_hec_http_error(status_code: int, response_body: str) -> urllib.error.HTTPError:
