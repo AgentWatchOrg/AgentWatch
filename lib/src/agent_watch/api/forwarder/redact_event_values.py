@@ -11,24 +11,31 @@ URL_SCHEME_PATTERN: str = r"\b[a-zA-Z][a-zA-Z0-9+.-]{0,31}://"
 SECRET_NAME_PATTERN: str = r"(?:password|passwd|pwd|secret|token|api[-_]?key|access[-_]?key)"
 QUOTED_OR_BARE_VALUE_PATTERN: str = r"(\"[^\"]*\"|'[^']*'|\S+)"
 NOT_INSIDE_A_WORD_PATTERN: str = r"(?<![\w-])"
+NAME_AFFIX_PATTERN: str = r"[\w-]{0,64}"
+COOKIE_VALUE_PATTERN: str = r"[^\s\"';]+(?:;\s*[^\s\"';]+)*"
 
 REDACTION_RULES: list[RedactionRule] = [
     RedactionRule("authorization-header", re.compile(
         r"(?i)(authorization:\s*(?:(?:bearer|basic|token)\s+)?)[^\s\"']+"), rf"\g<1>{REDACTED_VALUE}"),
+    RedactionRule("cookie-header", re.compile(
+        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}(?:set-)?cookie:\s*){COOKIE_VALUE_PATTERN}"), rf"\g<1>{REDACTED_VALUE}"),
+    RedactionRule("secret-json-field", re.compile(
+        rf"(?i)(\"{NAME_AFFIX_PATTERN}{SECRET_NAME_PATTERN}{NAME_AFFIX_PATTERN}\"\s*:\s*)\"[^\"]*\""),
+        rf'\g<1>"{REDACTED_VALUE}"'),
     RedactionRule("secret-header", re.compile(
-        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}[\w-]*{SECRET_NAME_PATTERN}[\w-]*:\s*)[^\s\"']+"),
-        rf"\g<1>{REDACTED_VALUE}"),
+        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}{NAME_AFFIX_PATTERN}{SECRET_NAME_PATTERN}{NAME_AFFIX_PATTERN}:\s*)"
+        r"[^\s\"']+"), rf"\g<1>{REDACTED_VALUE}"),
     RedactionRule("password-arg", re.compile(
-        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}--?[\w-]*{SECRET_NAME_PATTERN}[\w-]*(?:=|\s+)){QUOTED_OR_BARE_VALUE_PATTERN}"),
-        rf"\g<1>{REDACTED_VALUE}"),
+        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}--?{NAME_AFFIX_PATTERN}{SECRET_NAME_PATTERN}{NAME_AFFIX_PATTERN}(?:=|\s+))"
+        rf"{QUOTED_OR_BARE_VALUE_PATTERN}"), rf"\g<1>{REDACTED_VALUE}"),
     RedactionRule("user-credential", re.compile(
         rf"({NOT_INSIDE_A_WORD_PATTERN}(?:-u\s+|--user(?:=|\s+))[^\s:\"']+:)[^\s\"']+"), rf"\g<1>{REDACTED_VALUE}"),
     RedactionRule("url-credential", re.compile(rf"({URL_SCHEME_PATTERN})[^\s/@]+@"), rf"\g<1>{REDACTED_VALUE}@"),
     RedactionRule("url-query", re.compile(rf"({URL_SCHEME_PATTERN}[^\s?#\"']*)\?[^\s#\"']+"),
                   rf"\g<1>?{REDACTED_VALUE}"),
     RedactionRule("secret-assignment", re.compile(
-        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}[a-z0-9_]*(?:password|passwd|_pwd|secret|token|api_?key|access_?key)"
-        rf"[a-z0-9_]*=){QUOTED_OR_BARE_VALUE_PATTERN}"), rf"\g<1>{REDACTED_VALUE}"),
+        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}[a-z0-9_]{{0,64}}(?:password|passwd|_pwd|secret|token|api_?key|access_?key)"
+        rf"[a-z0-9_]{{0,64}}=){QUOTED_OR_BARE_VALUE_PATTERN}"), rf"\g<1>{REDACTED_VALUE}"),
     RedactionRule("api-key", re.compile(
         r"\b(?:sk-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{20,}|gh[opsu]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}"
         r"|xox[abprs]-[A-Za-z0-9-]{10,})\b"), REDACTED_VALUE),
