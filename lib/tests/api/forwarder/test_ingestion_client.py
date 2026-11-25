@@ -2,7 +2,7 @@ import http.client
 import urllib.error
 
 import pytest
-from doubles.forwarder_test_doubles import IngestionApplicationUnderTest
+from doubles.forwarder_test_doubles import IngestionApplicationUnderTest, build_unreadable_http_error
 
 from agent_watch.api.forwarder.ingestion_client import (
     IngestionClient, parse_ingestion_batch_result, parse_rejected_events)
@@ -54,6 +54,15 @@ def test_send_event_batch_reports_a_successful_response_that_is_not_json_text(
     ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, ingestion_application.api_key)
 
     with pytest.raises(IngestionRequestError, match="not JSON"):
+        ingestion_client.send_event_batch([valid_process_exec_event])
+
+
+def test_send_event_batch_reports_an_error_whose_body_cannot_be_read(
+        ingestion_application: IngestionApplicationUnderTest, valid_process_exec_event: JsonObject) -> None:
+    ingestion_application.urlopen.failure = build_unreadable_http_error(502)
+    ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, ingestion_application.api_key)
+
+    with pytest.raises(IngestionRequestError, match="HTTP 502: <unreadable body>"):
         ingestion_client.send_event_batch([valid_process_exec_event])
 
 

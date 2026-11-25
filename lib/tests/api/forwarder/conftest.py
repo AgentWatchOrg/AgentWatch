@@ -42,6 +42,11 @@ def recording_sender() -> RecordingEventBatchSender:
 
 
 @pytest.fixture
+def sender_rejecting_event_c() -> RecordingEventBatchSender:
+    return RecordingEventBatchSender(rejected_event_ids=frozenset({"c"}))
+
+
+@pytest.fixture
 def ingestion_application(
         monkeypatch: pytest.MonkeyPatch, event_store: InMemoryEventStore) -> Iterator[IngestionApplicationUnderTest]:
     monkeypatch.setenv(INGESTION_API_KEY_ENVIRONMENT_VARIABLE, TEST_INGESTION_API_KEY)
