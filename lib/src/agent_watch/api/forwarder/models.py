@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 
 from agent_watch.api.github_client import JsonObject
@@ -17,6 +18,13 @@ class MalformedSensorRecordError(ForwarderError):
 
 class IngestionRequestError(ForwarderError):
     pass
+
+
+@dataclass(frozen=True)
+class RedactionRule:
+    name: str
+    pattern: re.Pattern[str]
+    replacement: str
 
 
 @dataclass(frozen=True)

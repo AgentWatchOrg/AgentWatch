@@ -1,21 +1,12 @@
 import re
-from dataclasses import dataclass
 from typing import Any
 
+from agent_watch.api.forwarder.models import RedactionRule
 from agent_watch.api.github_client import JsonObject
 
 REDACTED_VALUE: str = "*****"
 MAXIMUM_ARGUMENTS_LENGTH: int = 1024
 ARGUMENT_TRUNCATION_RULE_NAME: str = "argument-truncation"
-
-
-@dataclass(frozen=True)
-class RedactionRule:
-    name: str
-    pattern: re.Pattern[str]
-    replacement: str
-
-
 URL_SCHEME_PATTERN: str = r"\b[a-zA-Z][a-zA-Z0-9+.-]{0,31}://"
 SECRET_NAME_PATTERN: str = r"(?:password|passwd|pwd|secret|token|api[-_]?key|access[-_]?key)"
 QUOTED_OR_BARE_VALUE_PATTERN: str = r"(\"[^\"]*\"|'[^']*'|\S+)"
@@ -24,6 +15,9 @@ NOT_INSIDE_A_WORD_PATTERN: str = r"(?<![\w-])"
 REDACTION_RULES: list[RedactionRule] = [
     RedactionRule("authorization-header", re.compile(
         r"(?i)(authorization:\s*(?:(?:bearer|basic|token)\s+)?)[^\s\"']+"), rf"\g<1>{REDACTED_VALUE}"),
+    RedactionRule("secret-header", re.compile(
+        rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}[\w-]*{SECRET_NAME_PATTERN}[\w-]*:\s*)[^\s\"']+"),
+        rf"\g<1>{REDACTED_VALUE}"),
     RedactionRule("password-arg", re.compile(
         rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}--?[\w-]*{SECRET_NAME_PATTERN}[\w-]*(?:=|\s+)){QUOTED_OR_BARE_VALUE_PATTERN}"),
         rf"\g<1>{REDACTED_VALUE}"),

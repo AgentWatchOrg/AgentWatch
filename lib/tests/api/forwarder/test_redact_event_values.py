@@ -28,11 +28,15 @@ def process_exec_event_with_secrets() -> JsonObject:
     ("sh -c MYSQL_PWD=s3cr3t mysql", "sh -c MYSQL_PWD=***** mysql", ["secret-assignment"]),
     ("github_pat_11ABCDEFGHIJKLMNOPQRSTUV ghs_ABCDEFGHIJKLMNOPQRSTUVWX xoxb-1234567890-abc", "***** ***** *****",
      ["api-key"]),
+    ('-H "X-Api-Key: s3cr3tvalue" https://ingest/v1/events', '-H "X-Api-Key: *****" https://ingest/v1/events',
+     ["secret-header"]),
+    ("-H PRIVATE-TOKEN: glpat-abc123", "-H PRIVATE-TOKEN: *****", ["secret-header"]),
     ("kubectl get secret my-secret -o yaml", "kubectl get secret my-secret -o yaml", []),
     ("cat /etc/app-secret config.yaml", "cat /etc/app-secret config.yaml", []),
     ("ls -la /home/agent", "ls -la /home/agent", []),
 ], ids=["authorization-header", "password-arg", "quoted-token", "url-credential", "url-query", "api-key",
-        "flag-containing-secret", "user-credential", "secret-assignment", "more-token-prefixes",
+        "flag-containing-secret", "user-credential", "secret-assignment", "more-token-prefixes", "api-key-header",
+        "private-token-header",
         "hyphenated-word-before-flag", "hyphenated-path", "clean"])
 def test_redact_text(text: str, expected_text: str, expected_rule_names: list[str]) -> None:
     assert redact_text(text) == (expected_text, expected_rule_names)
