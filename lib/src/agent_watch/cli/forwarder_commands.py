@@ -38,7 +38,8 @@ def forward_tetragon_events_command(tetragon_events_file: TextIO, ingestion_url:
         ingestion_client = IngestionClient(ingestion_url, ingestion_api_key)
     try:
         result: ForwardingResult = forward_tetragon_export(
-            tetragon_events_file.read(), EventIdentityAssigner(), InMemoryEventBuffer(), ingestion_client)
+            tetragon_events_file.read(), EventIdentityAssigner(), InMemoryEventBuffer(), ingestion_client,
+            is_dry_run)
     except IngestionRequestError as request_error:
         logger.error(f"Delivery failed: {request_error}")
         raise SystemExit(1) from request_error

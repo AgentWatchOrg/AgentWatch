@@ -46,13 +46,13 @@ def test_forward_tetragon_events_reports_the_delivery(
         make_forwarding_result: ForwardingResultFactory) -> None:
     received_exports: list[tuple[str, bool]] = []
 
-    def fake_forward_tetragon_records(
+    def fake_forward_tetragon_export(
             tetragon_json_lines: str, identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
-            event_batch_sender: EventBatchSender | None) -> ForwardingResult:
-        received_exports.append((tetragon_json_lines, event_batch_sender is None))
+            event_batch_sender: EventBatchSender | None, is_dry_run: bool) -> ForwardingResult:
+        received_exports.append((tetragon_json_lines, is_dry_run))
         return make_forwarding_result([])
 
-    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", fake_forward_tetragon_records)
+    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", fake_forward_tetragon_export)
 
     result: Result = cli_runner.invoke(
         agent_watch, ["forwarder", "forward-tetragon-events", "--tetragon-events-file", str(tetragon_events_file)],
@@ -66,12 +66,12 @@ def test_forward_tetragon_events_reports_the_delivery(
 
 def test_forward_tetragon_events_exits_with_an_error_when_delivery_fails(
         cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tetragon_events_file: Path) -> None:
-    def failing_forward_tetragon_records(
+    def failing_forward_tetragon_export(
             tetragon_json_lines: str, identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
-            event_batch_sender: EventBatchSender | None) -> ForwardingResult:
+            event_batch_sender: EventBatchSender | None, is_dry_run: bool) -> ForwardingResult:
         raise IngestionRequestError("Could not reach http://127.0.0.1:8000/v1/events")
 
-    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", failing_forward_tetragon_records)
+    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", failing_forward_tetragon_export)
 
     result: Result = cli_runner.invoke(
         agent_watch, ["forwarder", "forward-tetragon-events", "--tetragon-events-file", str(tetragon_events_file)],
@@ -84,12 +84,12 @@ def test_forward_tetragon_events_exits_with_an_error_when_delivery_fails(
 def test_forward_tetragon_events_exits_with_an_error_when_an_event_is_rejected(
         cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tetragon_events_file: Path,
         make_forwarding_result: ForwardingResultFactory, rejected_event: RejectedEvent) -> None:
-    def rejecting_forward_tetragon_records(
+    def rejecting_forward_tetragon_export(
             tetragon_json_lines: str, identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
-            event_batch_sender: EventBatchSender | None) -> ForwardingResult:
+            event_batch_sender: EventBatchSender | None, is_dry_run: bool) -> ForwardingResult:
         return make_forwarding_result([rejected_event])
 
-    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", rejecting_forward_tetragon_records)
+    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", rejecting_forward_tetragon_export)
 
     result: Result = cli_runner.invoke(
         agent_watch, ["forwarder", "forward-tetragon-events", "--tetragon-events-file", str(tetragon_events_file)],
@@ -104,13 +104,13 @@ def test_forward_tetragon_events_dry_run_plans_without_reporting_a_delivery(
         make_forwarding_result: ForwardingResultFactory) -> None:
     received_dry_run_flags: list[bool] = []
 
-    def recording_forward_tetragon_records(
+    def recording_forward_tetragon_export(
             tetragon_json_lines: str, identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
-            event_batch_sender: EventBatchSender | None) -> ForwardingResult:
-        received_dry_run_flags.append(event_batch_sender is None)
+            event_batch_sender: EventBatchSender | None, is_dry_run: bool) -> ForwardingResult:
+        received_dry_run_flags.append(is_dry_run and event_batch_sender is None)
         return make_forwarding_result([])
 
-    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", recording_forward_tetragon_records)
+    monkeypatch.setattr(forwarder_commands, "forward_tetragon_export", recording_forward_tetragon_export)
 
     result: Result = cli_runner.invoke(agent_watch, [
         "forwarder", "forward-tetragon-events", "--tetragon-events-file", str(tetragon_events_file), "--dry-run"],
