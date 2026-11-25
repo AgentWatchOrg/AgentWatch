@@ -19,6 +19,15 @@ class SplunkHecSettingsFactory(Protocol):
                  should_verify_tls: bool = True) -> SplunkHecSettings: ...
 
 
+class HecEventBatchFactory(Protocol):
+    def __call__(self, event_ids: str) -> list[JsonObject]: ...
+
+
+class RecordingHecEventSenderFactory(Protocol):
+    def __call__(self, failing_request_numbers: frozenset[int],
+                 failure: Exception | None = None) -> "RecordingHecEventSender": ...
+
+
 class FakeHecResponse:
     def read(self) -> bytes:
         return b'{"text":"Success","code":0}'
