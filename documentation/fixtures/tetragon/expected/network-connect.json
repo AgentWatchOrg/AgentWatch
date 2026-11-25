@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "event_id": "sha256:37b08e6dd5123cbac53bc96a9fab133a623674730aa101f5fb1329ccd2bddbac",
+  "forwarder_seq": 1,
+  "timestamp": "2026-11-18T12:00:00.200000000Z",
+  "host": "agentwatch-test-01",
+  "source": "tetragon",
+  "activity_type": "network_connect",
+  "process": {
+    "exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw",
+    "parent_exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw",
+    "pid": 2450,
+    "ppid": 2400,
+    "executable": "/usr/bin/curl",
+    "user_id": 1000
+  },
+  "agent": {
+    "attribution_status": "unknown",
+    "session_id": null
+  },
+  "target": "127.0.0.1:8080",
+  "outcome": "unknown",
+  "details": {
+    "protocol": "tcp",
+    "family": "ipv4",
+    "src_addr": "127.0.0.1",
+    "src_port": 51234,
+    "dst_addr": "127.0.0.1",
+    "dst_port": 8080
+  }
+}
