@@ -69,7 +69,7 @@ def normalize_file_access(tetragon_record: JsonObject) -> JsonObject:
     kprobe: JsonObject = require_object(tetragon_record, "process_kprobe")
     file_argument: JsonObject = first_object_argument(kprobe, "file_arg")
     path: str = require_text(file_argument, "path")
-    access_mask: Any = first_argument_value(kprobe, "int_arg")
+    access_mask: object = first_argument_value(kprobe, "int_arg")
     details: JsonObject = present_fields({
         "path": path,
         "operation": file_operation_name(kprobe["function_name"], access_mask),
@@ -145,7 +145,7 @@ def require_object(container: JsonObject, field_name: str) -> JsonObject:
     return value
 
 
-def first_argument_value(kprobe: JsonObject, argument_kind: str) -> Any:
+def first_argument_value(kprobe: JsonObject, argument_kind: str) -> object:
     kprobe_arguments: object = kprobe.get("args")
     for argument in kprobe_arguments if isinstance(kprobe_arguments, list) else []:
         if isinstance(argument, dict) and argument_kind in argument:
@@ -154,7 +154,7 @@ def first_argument_value(kprobe: JsonObject, argument_kind: str) -> Any:
 
 
 def first_object_argument(kprobe: JsonObject, argument_kind: str) -> JsonObject:
-    argument_value: Any = first_argument_value(kprobe, argument_kind)
+    argument_value: object = first_argument_value(kprobe, argument_kind)
     return argument_value if isinstance(argument_value, dict) else {}
 
 
