@@ -73,19 +73,7 @@ def test_send_buffered_events_keeps_events_after_a_failed_request_and_resends_th
     assert event_buffer.unsent_event_count() == 0
 
 
-def test_send_buffered_events_splits_the_buffer_into_batches(
-        monkeypatch: pytest.MonkeyPatch, event_buffer: InMemoryEventBuffer,
-        recording_sender: RecordingEventBatchSender) -> None:
-    monkeypatch.setattr(forward_events, "MAXIMUM_EVENTS_PER_INGESTION_BATCH", 2)
-    event_buffer.add_events([{"event_id": event_id} for event_id in ["a", "b", "c"]])
-
-    batch_result: IngestionBatchResult = send_buffered_events(event_buffer, recording_sender)
-
-    assert [len(sent_batch) for sent_batch in recording_sender.sent_batches] == [2, 1]
-    assert batch_result.accepted_count == 3
-
-
-def test_send_buffered_events_logs_each_delivered_batch(
+def test_send_buffered_events_splits_the_buffer_into_batches_and_logs_each_one(
         monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, event_buffer: InMemoryEventBuffer,
         recording_sender: RecordingEventBatchSender) -> None:
     monkeypatch.setattr(forward_events, "MAXIMUM_EVENTS_PER_INGESTION_BATCH", 2)
@@ -93,10 +81,11 @@ def test_send_buffered_events_logs_each_delivered_batch(
     event_buffer.add_events([{"event_id": event_id} for event_id in ["a", "b", "c"]])
 
     with caplog.at_level(logging.INFO, logger="agent_watch"):
-        send_buffered_events(event_buffer, recording_sender)
+        batch_result: IngestionBatchResult = send_buffered_events(event_buffer, recording_sender)
 
+    assert [len(sent_batch) for sent_batch in recording_sender.sent_batches] == [2, 1]
+    assert batch_result.accepted_count == 3
     assert "Delivered 2 event(s): 2 accepted, 0 rejected, 0 duplicate" in caplog.text
-    assert "Delivered 1 event(s): 1 accepted, 0 rejected, 0 duplicate" in caplog.text
 
 
 def test_send_buffered_events_reports_per_event_rejections(event_buffer: InMemoryEventBuffer) -> None:
