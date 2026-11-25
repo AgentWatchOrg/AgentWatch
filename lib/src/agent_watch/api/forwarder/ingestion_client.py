@@ -1,3 +1,4 @@
+import http.client
 import json
 import logging
 import urllib.error
@@ -35,7 +36,7 @@ class IngestionClient:
             error_body: str = http_error.read().decode("utf-8", errors="replace")[:MAXIMUM_ERROR_BODY_LENGTH]
             raise IngestionRequestError(
                 f"POST {self.events_url} returned HTTP {http_error.code}: {error_body}") from http_error
-        except (urllib.error.URLError, TimeoutError) as connection_error:
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as connection_error:
             raise IngestionRequestError(f"Could not reach {self.events_url}: {connection_error}") from connection_error
         except json.JSONDecodeError as decode_error:
             raise IngestionRequestError(f"POST {self.events_url} returned a body that is not JSON") from decode_error

@@ -2,7 +2,7 @@ import json
 
 import pytest
 from doubles.forwarder_test_doubles import (
-    FAKE_SECRET_VALUES, LiveIngestionServer, RecordingEventBatchSender, TetragonRecordLoader)
+    FAKE_SECRET_VALUES, IngestionApplicationUnderTest, RecordingEventBatchSender, TetragonRecordLoader)
 from telemetry_fixture_paths import TETRAGON_EXPECTED_FIXTURE_DIRECTORY, load_json_object
 
 from agent_watch.api.forwarder import forward_events
@@ -105,9 +105,9 @@ def test_forward_tetragon_records_in_a_dry_run_sends_nothing(
 
 
 def test_forward_tetragon_records_delivers_every_event_type_to_ingestion(
-        live_ingestion_server: LiveIngestionServer, load_tetragon_record: TetragonRecordLoader,
+        ingestion_application: IngestionApplicationUnderTest, load_tetragon_record: TetragonRecordLoader,
         identity_assigner: EventIdentityAssigner, event_buffer: InMemoryEventBuffer) -> None:
-    ingestion_client: IngestionClient = IngestionClient(live_ingestion_server.url, live_ingestion_server.api_key)
+    ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, ingestion_application.api_key)
     tetragon_records: list[JsonObject] = [
         load_tetragon_record(fixture_name) for fixture_name in ["process-exec", "file-access", "network-connect"]]
 
@@ -117,13 +117,13 @@ def test_forward_tetragon_records_delivers_every_event_type_to_ingestion(
     assert result.accepted_count == 3
     assert result.rejected_events == []
     assert result.unsent_event_count == 0
-    assert len(live_ingestion_server.event_store.pop_unexported_events()) == 3
+    assert len(ingestion_application.event_store.pop_unexported_events()) == 3
 
 
 def test_resending_an_accepted_event_to_ingestion_is_reported_as_a_duplicate(
-        live_ingestion_server: LiveIngestionServer, load_tetragon_record: TetragonRecordLoader,
+        ingestion_application: IngestionApplicationUnderTest, load_tetragon_record: TetragonRecordLoader,
         identity_assigner: EventIdentityAssigner, event_buffer: InMemoryEventBuffer) -> None:
-    ingestion_client: IngestionClient = IngestionClient(live_ingestion_server.url, live_ingestion_server.api_key)
+    ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, ingestion_application.api_key)
     planned_forwarding: PlannedForwarding = plan_event_forwarding(
         [load_tetragon_record("process-exec")], identity_assigner)
     apply_event_forwarding(planned_forwarding, event_buffer, ingestion_client)

@@ -6,23 +6,9 @@
   "host": "agentwatch-test-01",
   "source": "tetragon",
   "activity_type": "process_exec",
-  "process": {
-    "exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw",
-    "parent_exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw",
-    "pid": 2450,
-    "ppid": 2400,
-    "executable": "/usr/bin/curl",
-    "user_id": 1000
-  },
-  "agent": {
-    "attribution_status": "unknown",
-    "session_id": null
-  },
+  "process": {"exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw", "parent_exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw", "pid": 2450, "ppid": 2400, "executable": "/usr/bin/curl", "user_id": 1000},
+  "agent": {"attribution_status": "unknown", "session_id": null},
   "target": "/usr/bin/curl",
   "outcome": "success",
-  "details": {
-    "arguments": "http://127.0.0.1:8080/resource",
-    "cwd": "/home/agent",
-    "parent_executable": "/bin/bash"
-  }
+  "details": {"arguments": "http://127.0.0.1:8080/resource", "cwd": "/home/agent", "parent_executable": "/bin/bash"}
 }
