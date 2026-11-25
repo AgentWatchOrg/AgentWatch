@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 from typing import Protocol
 
 from agent_watch.api.forwarder.assign_event_identities import EventIdentityAssigner
@@ -37,6 +38,7 @@ def send_buffered_events(event_buffer: EventBuffer, event_batch_sender: EventBat
     accepted_count: int = 0
     rejected_events: list[RejectedEvent] = []
     duplicate_events: list[RejectedEvent] = []
+    sent_event_count: int = 0
     while event_buffer.unsent_event_count():
         event_batch: list[JsonObject] = event_buffer.unsent_events(MAXIMUM_EVENTS_PER_INGESTION_BATCH)
         batch_result: IngestionBatchResult = event_batch_sender.send_event_batch(event_batch)
@@ -46,8 +48,11 @@ def send_buffered_events(event_buffer: EventBuffer, event_batch_sender: EventBat
         for rejected_event in batch_result.rejected_events:
             logger.warning("Ingestion rejected event %s: %s", rejected_event.event_id, rejected_event.reason)
         accepted_count += batch_result.accepted_count
-        rejected_events += batch_result.rejected_events
-        duplicate_events += batch_result.duplicate_events
+        rejected_events += [replace(rejected, index=rejected.index + sent_event_count)
+                            for rejected in batch_result.rejected_events]
+        duplicate_events += [replace(duplicate, index=duplicate.index + sent_event_count)
+                             for duplicate in batch_result.duplicate_events]
+        sent_event_count += len(event_batch)
     return IngestionBatchResult(
         accepted_count=accepted_count, rejected_events=rejected_events, duplicate_events=duplicate_events)
 
