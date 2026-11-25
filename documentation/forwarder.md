@@ -4,11 +4,12 @@ Turns Tetragon records into [v1 telemetry events](telemetry-v1.md) and sends the
 
 ```bash
 tetra getevents -o json > tetragon-events.json
-agent-watch forwarder forward-tetragon-events \
-  --tetragon-events-file tetragon-events.json \
-  --ingestion-url http://52.60.176.146 \
-  --ingestion-api-key "$INGESTION_API_KEY"
+export INGESTION_URL=<web server base URL>
+export INGESTION_API_KEY=<the server's AGENT_WATCH_INGESTION_API_KEY>
+agent-watch forwarder forward-tetragon-events --tetragon-events-file tetragon-events.json
 ```
+
+`tetra getevents` keeps writing until you stop it with Ctrl+C. The command reads the whole file, then sends it. Set the API key through `INGESTION_API_KEY` rather than the flag, so it does not show in the process list.
 
 | Option | Env | Purpose |
 |---|---|---|
@@ -24,10 +25,10 @@ The command exits `1` when the request fails or any event is rejected, and logs 
 | Tetragon record | `activity_type` | `target` | `details` |
 |---|---|---|---|
 | `process_exec` | `process_exec` | `process.binary` | `arguments`, `cwd`, `parent_executable` from `parent.binary` |
-| `process_kprobe` on `security_file_permission` or `security_file_open` | `file_access` | file path | `path`, `operation` from the access mask, `permission` from the mode text |
+| `process_kprobe` on `security_file_permission` or `security_file_open` | `file_access` | file path | `path`, `operation` from the access mask (left out when the mask shows neither a read nor a write), `permission` from the mode text, including setuid, setgid, and sticky bits |
 | `process_kprobe` on `tcp_connect` | `network_connect` | `daddr:dport` | `protocol`, `family`, `src_addr`, `src_port`, `dst_addr`, `dst_port` |
 
-`process` comes from `process` (`exec_id`, `parent_exec_id`, `pid`, `binary`, `uid`) and `ppid` from `parent.pid`. `host` is `node_name` and `timestamp` is `time`. Only these fields are copied, so environment variables and file contents never enter an event. A kprobe `return` of `0` or more is `success`, `-1` or `-13` is `denied`, and anything else or no return value is `unknown`. Every other record type is skipped and counted. Attribution is always `unknown` until session correlation ([#5](https://github.com/AgentWatchOrg/AgentWatch/issues/5)) is built.
+`process` comes from `process` (`exec_id`, `parent_exec_id`, `pid`, `binary`, `uid`) and `ppid` from `parent.pid`. `host` is `node_name` and `timestamp` is `time`. Only these fields are copied, so environment variables and file contents never enter an event. A kprobe `return` of `0` or more is `success`, `-1` or `-13` is `denied`, and anything else or no return value is `unknown`. Every other record type is skipped and counted, and so is a `process_exec` from Tetragon's startup scan of running processes (`procFS` in `process.flags`), because it is not a new program start. Attribution is always `unknown` until session correlation ([#5](https://github.com/AgentWatchOrg/AgentWatch/issues/5)) is built.
 
 Raw inputs and the exact events they produce are in [documentation/fixtures/tetragon](https://github.com/AgentWatchOrg/AgentWatch/tree/main/documentation/fixtures/tetragon). They follow Tetragon's documented JSON export and are replaced by host samples from [#57](https://github.com/AgentWatchOrg/AgentWatch/issues/57) when those land. auditd fallback parsing waits for #57 to confirm which operations auditd covers.
 

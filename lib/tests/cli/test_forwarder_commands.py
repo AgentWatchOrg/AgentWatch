@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner, Result
+from doubles.forwarder_test_doubles import ForwardingResultFactory
 from telemetry_fixture_paths import TETRAGON_RAW_FIXTURE_DIRECTORY
 
 from agent_watch.api.forwarder.assign_event_identities import EventIdentityAssigner
@@ -26,20 +27,30 @@ def tetragon_events_file(tmp_path: Path) -> Path:
     return events_file
 
 
-def build_forwarding_result(rejected_events: list[RejectedEvent]) -> ForwardingResult:
-    return ForwardingResult(planned_event_count=1, skipped_record_count=1, accepted_count=1 - len(rejected_events),
-                            rejected_events=rejected_events, duplicate_events=[], unsent_event_count=0)
+@pytest.fixture
+def make_forwarding_result() -> ForwardingResultFactory:
+    def build_forwarding_result(rejected_events: list[RejectedEvent]) -> ForwardingResult:
+        return ForwardingResult(planned_event_count=1, skipped_record_count=1,
+                                accepted_count=1 - len(rejected_events), rejected_events=rejected_events,
+                                duplicate_events=[], unsent_event_count=0)
+    return build_forwarding_result
+
+
+@pytest.fixture
+def rejected_event() -> RejectedEvent:
+    return RejectedEvent(index=0, event_id="sha256:a", reason="bad")
 
 
 def test_forward_tetragon_events_reports_the_delivery(
-        cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tetragon_events_file: Path) -> None:
+        cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tetragon_events_file: Path,
+        make_forwarding_result: ForwardingResultFactory) -> None:
     received_record_counts: list[tuple[int, bool]] = []
 
     def fake_forward_tetragon_records(
             tetragon_records: list[JsonObject], identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
             event_batch_sender: EventBatchSender, is_dry_run: bool) -> ForwardingResult:
         received_record_counts.append((len(tetragon_records), is_dry_run))
-        return build_forwarding_result([])
+        return make_forwarding_result([])
 
     monkeypatch.setattr(forwarder_commands, "forward_tetragon_records", fake_forward_tetragon_records)
 
@@ -71,11 +82,12 @@ def test_forward_tetragon_events_exits_with_an_error_when_delivery_fails(
 
 
 def test_forward_tetragon_events_exits_with_an_error_when_an_event_is_rejected(
-        cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tetragon_events_file: Path) -> None:
+        cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tetragon_events_file: Path,
+        make_forwarding_result: ForwardingResultFactory, rejected_event: RejectedEvent) -> None:
     def rejecting_forward_tetragon_records(
             tetragon_records: list[JsonObject], identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
             event_batch_sender: EventBatchSender, is_dry_run: bool) -> ForwardingResult:
-        return build_forwarding_result([RejectedEvent(index=0, event_id="sha256:a", reason="bad")])
+        return make_forwarding_result([rejected_event])
 
     monkeypatch.setattr(forwarder_commands, "forward_tetragon_records", rejecting_forward_tetragon_records)
 
@@ -85,3 +97,26 @@ def test_forward_tetragon_events_exits_with_an_error_when_an_event_is_rejected(
 
     assert result.exit_code == 1
     assert "0 accepted, 1 rejected" in result.output
+
+
+def test_forward_tetragon_events_dry_run_plans_without_reporting_a_delivery(
+        cli_runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tetragon_events_file: Path,
+        make_forwarding_result: ForwardingResultFactory) -> None:
+    received_dry_run_flags: list[bool] = []
+
+    def recording_forward_tetragon_records(
+            tetragon_records: list[JsonObject], identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
+            event_batch_sender: EventBatchSender, is_dry_run: bool) -> ForwardingResult:
+        received_dry_run_flags.append(is_dry_run)
+        return make_forwarding_result([])
+
+    monkeypatch.setattr(forwarder_commands, "forward_tetragon_records", recording_forward_tetragon_records)
+
+    result: Result = cli_runner.invoke(agent_watch, [
+        "forwarder", "forward-tetragon-events", "--tetragon-events-file", str(tetragon_events_file), "--dry-run"],
+        env=FORWARDER_ENVIRONMENT)
+
+    assert result.exit_code == 0, result.output
+    assert received_dry_run_flags == [True]
+    assert "1 event(s) planned, 1 record(s) skipped (dry run)" in result.output
+    assert "accepted" not in result.output
