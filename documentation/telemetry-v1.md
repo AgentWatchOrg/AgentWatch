@@ -8,7 +8,7 @@ The contract is version `1.0`. Valid fixtures are in [documentation/fixtures/tel
 
 The forwarder assigns `event_id` once, after normalization and redaction, as a SHA-256 hash of a canonical representation of the event: host, timestamp, process identity and lineage, activity type, target, and available type-specific details. The ID is stored with the event in the forwarder buffer. Replay resends the stored event unchanged, including `event_id` and `forwarder_seq`, so consumers deduplicate on `event_id`.
 
-Two events with different canonical inputs never share an ID. If two distinct events produce the same canonical inputs, the forwarder adds the sensor thread ID or `forwarder_seq` to the canonical representation. This is safe because replay never recomputes the ID.
+Two events with different canonical inputs never share an ID. If an event's canonical inputs match one of the last 10,000 IDs the forwarder process assigned, the forwarder adds `forwarder_seq` to the canonical representation. A match outside that window, or after a forwarder restart, is treated as the same event read again, because a real repeat would need the same nanosecond timestamp. This is safe because replay never recomputes the ID.
 
 `forwarder_seq` is a positive integer that advances once for every event assigned an identity. It starts at 1 for a forwarder process and resets after a process restart. A gap within one forwarder process indicates lost delivery; a reset to 1 after a restart does not.
 
