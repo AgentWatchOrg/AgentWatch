@@ -1,3 +1,4 @@
+import http.client
 import json
 import logging
 import ssl
@@ -38,6 +39,6 @@ class SplunkHecClient:
             error_body: str = http_error.read().decode("utf-8", errors="replace")[:MAXIMUM_ERROR_BODY_LENGTH]
             raise SplunkExportError(
                 f"Splunk HEC at {self.events_url} returned HTTP {http_error.code}: {error_body}") from http_error
-        except (urllib.error.URLError, TimeoutError) as connection_error:
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as connection_error:
             raise SplunkExportError(
                 f"Could not reach Splunk HEC at {self.events_url}: {connection_error}") from connection_error
