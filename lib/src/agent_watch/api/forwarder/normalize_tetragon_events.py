@@ -7,6 +7,7 @@ from agent_watch.api.github_client import JsonObject
 
 FILE_ACCESS_FUNCTION_NAMES: frozenset[str] = frozenset({"security_file_permission", "security_file_open"})
 NETWORK_CONNECT_FUNCTION_NAMES: frozenset[str] = frozenset({"tcp_connect"})
+STARTUP_PROCESS_SCAN_FLAG: str = "procFS"
 LINUX_MAY_WRITE_MASK: int = 0x2
 LINUX_MAY_READ_MASK: int = 0x4
 PERMISSION_BIT_VALUES: list[int] = [0o400, 0o200, 0o100, 0o040, 0o020, 0o010, 0o004, 0o002, 0o001]
@@ -38,7 +39,7 @@ def parse_tetragon_json_lines(tetragon_json_lines: str) -> tuple[list[JsonObject
 
 def normalize_tetragon_record(tetragon_record: JsonObject) -> JsonObject | None:
     if "process_exec" in tetragon_record:
-        return normalize_process_exec(tetragon_record)
+        return None if is_startup_process_scan(tetragon_record) else normalize_process_exec(tetragon_record)
     if "process_kprobe" not in tetragon_record:
         logger.debug("Skipping unsupported Tetragon record type: %s", ", ".join(sorted(tetragon_record)))
         return None
@@ -49,6 +50,14 @@ def normalize_tetragon_record(tetragon_record: JsonObject) -> JsonObject | None:
         return normalize_network_connect(tetragon_record)
     logger.debug("Skipping unsupported Tetragon kprobe: %s", function_name)
     return None
+
+
+def is_startup_process_scan(tetragon_record: JsonObject) -> bool:
+    process_flags: object = require_object(require_object(tetragon_record, "process_exec"), "process").get("flags")
+    if STARTUP_PROCESS_SCAN_FLAG not in str(process_flags).split():
+        return False
+    logger.debug("Skipping a process found by Tetragon's startup /proc scan")
+    return True
 
 
 def normalize_process_exec(tetragon_record: JsonObject) -> JsonObject:
