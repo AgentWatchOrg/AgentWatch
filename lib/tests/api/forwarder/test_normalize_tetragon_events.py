@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from doubles.forwarder_test_doubles import TetragonRecordLoader
 
@@ -36,8 +38,13 @@ def test_normalize_tetragon_record_skips_an_unsupported_event_type(
     assert normalize_tetragon_record(load_tetragon_record("process-exit")) is None
 
 
-def test_normalize_tetragon_record_skips_an_unsupported_kprobe() -> None:
-    assert normalize_tetragon_record({"process_kprobe": {"function_name": "sys_ptrace"}}) is None
+def test_normalize_tetragon_record_skips_an_unsupported_kprobe(
+        caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(logging.getLogger("agent_watch"), "propagate", True)
+    with caplog.at_level(logging.DEBUG, logger="agent_watch"):
+        assert normalize_tetragon_record({"process_kprobe": {"function_name": "sys_ptrace"}}) is None
+
+    assert "Skipping unsupported Tetragon kprobe: sys_ptrace" in caplog.text
 
 
 def test_normalize_process_exec_maps_the_program_and_its_parent(load_tetragon_record: TetragonRecordLoader) -> None:

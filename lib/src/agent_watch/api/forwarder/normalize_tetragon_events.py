@@ -30,6 +30,7 @@ def parse_tetragon_json_lines(tetragon_json_lines: str) -> tuple[list[JsonObject
         if isinstance(parsed_line, dict):
             tetragon_records.append(parsed_line)
         else:
+            logger.debug("Skipping a Tetragon line that is not a JSON object")
             malformed_line_count += 1
     return tetragon_records, malformed_line_count
 
@@ -39,12 +40,14 @@ def normalize_tetragon_record(tetragon_record: JsonObject) -> JsonObject | None:
         return normalize_process_exec(tetragon_record)
     kprobe: JsonObject | None = tetragon_record.get("process_kprobe")
     if kprobe is None:
+        logger.debug("Skipping unsupported Tetragon record type: %s", ", ".join(sorted(tetragon_record)))
         return None
     function_name: str = kprobe.get("function_name", "")
     if function_name in FILE_ACCESS_FUNCTION_NAMES:
         return normalize_file_access(tetragon_record)
     if function_name in NETWORK_CONNECT_FUNCTION_NAMES:
         return normalize_network_connect(tetragon_record)
+    logger.debug("Skipping unsupported Tetragon kprobe: %s", function_name)
     return None
 
 
