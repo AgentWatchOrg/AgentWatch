@@ -31,6 +31,25 @@ def test_assign_identity_gives_identical_events_different_ids(
     assert repeated_event["event_id"] == compute_event_id(normalized_event, distinguishing_forwarder_seq=2)
 
 
+def test_assign_identity_forgets_ids_beyond_the_remembered_count(normalized_event: JsonObject) -> None:
+    identity_assigner_remembering_one: EventIdentityAssigner = EventIdentityAssigner(remembered_event_id_count=1)
+    identity_assigner_remembering_one.assign_identity(normalized_event)
+    identity_assigner_remembering_one.assign_identity({**normalized_event, "target": "/usr/bin/wget"})
+
+    event_after_eviction: JsonObject = identity_assigner_remembering_one.assign_identity(normalized_event)
+
+    assert event_after_eviction["event_id"] == compute_event_id(normalized_event)
+
+
+def test_remember_event_id_drops_the_oldest_id_first() -> None:
+    identity_assigner_remembering_two: EventIdentityAssigner = EventIdentityAssigner(remembered_event_id_count=2)
+
+    for event_id in ["sha256:a", "sha256:b", "sha256:c"]:
+        identity_assigner_remembering_two.remember_event_id(event_id)
+
+    assert list(identity_assigner_remembering_two._recent_event_ids) == ["sha256:b", "sha256:c"]
+
+
 def test_canonical_event_text_ignores_key_order_and_non_identity_fields(normalized_event: JsonObject) -> None:
     reordered_event: JsonObject = dict(reversed(list(normalized_event.items())))
 
