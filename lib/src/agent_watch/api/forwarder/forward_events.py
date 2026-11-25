@@ -65,10 +65,10 @@ def apply_event_forwarding(planned_forwarding: PlannedForwarding, event_buffer: 
 
 def forward_tetragon_records(
         tetragon_records: list[JsonObject], identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
-        event_batch_sender: EventBatchSender, is_dry_run: bool) -> ForwardingResult:
+        event_batch_sender: EventBatchSender | None) -> ForwardingResult:
     planned_forwarding: PlannedForwarding = plan_event_forwarding(tetragon_records, identity_assigner)
     delivery_result: IngestionBatchResult = (
-        IngestionBatchResult(accepted_count=0, rejected_events=[], duplicate_events=[]) if is_dry_run
+        IngestionBatchResult(accepted_count=0, rejected_events=[], duplicate_events=[]) if event_batch_sender is None
         else apply_event_forwarding(planned_forwarding, event_buffer, event_batch_sender))
     return ForwardingResult(
         planned_event_count=len(planned_forwarding.events),

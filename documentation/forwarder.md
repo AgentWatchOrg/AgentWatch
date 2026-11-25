@@ -14,9 +14,9 @@ agent-watch forwarder forward-tetragon-events --tetragon-events-file tetragon-ev
 | Option | Env | Purpose |
 |---|---|---|
 | `--tetragon-events-file` | `TETRAGON_EVENTS_FILE` | Tetragon JSON export, one record per line; `-` reads stdin |
-| `--ingestion-url` | `INGESTION_URL` | Base URL of the REST API |
-| `--ingestion-api-key` | `INGESTION_API_KEY` | Sent as `X-Api-Key` |
-| `--dry-run` | `IS_DRY_RUN` | Normalize and redact without sending |
+| `--ingestion-url` | `INGESTION_URL` | Base URL of the REST API; required unless `--dry-run` |
+| `--ingestion-api-key` | `INGESTION_API_KEY` | Sent as `X-Api-Key`; required unless `--dry-run` |
+| `--dry-run` | `IS_DRY_RUN` | Normalize and redact without sending or contacting the server |
 
 The command exits `1` when the request fails or any event is rejected, and logs the reason for each rejection.
 

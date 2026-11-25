@@ -93,7 +93,7 @@ def test_forward_tetragon_records_in_a_dry_run_sends_nothing(
         load_tetragon_record: TetragonRecordLoader, identity_assigner: EventIdentityAssigner,
         event_buffer: InMemoryEventBuffer, recording_sender: RecordingEventBatchSender) -> None:
     result: ForwardingResult = forward_tetragon_records(
-        [load_tetragon_record("process-exec")], identity_assigner, event_buffer, recording_sender, is_dry_run=True)
+        [load_tetragon_record("process-exec")], identity_assigner, event_buffer, event_batch_sender=None)
 
     assert result.planned_event_count == 1
     assert recording_sender.sent_batches == []
@@ -107,7 +107,7 @@ def test_forward_tetragon_records_delivers_every_event_type_to_ingestion(
         load_tetragon_record(fixture_name) for fixture_name in ["process-exec", "file-access", "network-connect"]]
 
     result: ForwardingResult = forward_tetragon_records(
-        tetragon_records, identity_assigner, event_buffer, ingestion_client, is_dry_run=False)
+        tetragon_records, identity_assigner, event_buffer, ingestion_client)
 
     assert (result.accepted_count, result.rejected_events, result.unsent_event_count) == (3, [], 0)
     assert len(ingestion_application.event_store.pop_unexported_events()) == 3
