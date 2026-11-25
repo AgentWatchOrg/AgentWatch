@@ -12,12 +12,13 @@ from telemetry_fixture_paths import VALID_FIXTURE_DIRECTORY, load_json_object
 
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.event_store import InMemoryEventStore
-from agent_watch.api.splunk_export.models import SplunkHecSettings
+from agent_watch.api.ingestion.models import MAXIMUM_EVENTS_PER_INGESTION_BATCH
 from agent_watch.api.splunk_export.export_events import SplunkExporter
+from agent_watch.api.splunk_export.models import SplunkHecSettings
 from agent_watch.rest_api.application import application
 from agent_watch.rest_api.routers.ingestion_router import (
-    MAXIMUM_EVENTS_PER_BATCH, build_splunk_exporter, get_ingestion_event_store, get_splunk_exporter,
-    get_splunk_hec_settings, require_ingestion_api_key)
+    build_splunk_exporter, get_ingestion_event_store, get_splunk_exporter, get_splunk_hec_settings,
+    require_ingestion_api_key)
 from agent_watch.rest_api.settings import INGESTION_API_KEY_ENVIRONMENT_VARIABLE, SPLUNK_HEC_URL_ENVIRONMENT_VARIABLE
 
 API_KEY_HEADER_NAME: str = "X-Api-Key"
@@ -87,7 +88,8 @@ def test_post_events_rejects_an_invalid_envelope(
 
 def test_post_events_rejects_a_batch_larger_than_the_maximum(
         api_client: TestClient, authorized_headers: dict[str, str]) -> None:
-    oversized_batch: list[JsonObject] = [{"event_id": str(index)} for index in range(MAXIMUM_EVENTS_PER_BATCH + 1)]
+    oversized_batch: list[JsonObject] = [
+        {"event_id": str(index)} for index in range(MAXIMUM_EVENTS_PER_INGESTION_BATCH + 1)]
 
     response: Response = api_client.post("/v1/events", json={"events": oversized_batch}, headers=authorized_headers)
 

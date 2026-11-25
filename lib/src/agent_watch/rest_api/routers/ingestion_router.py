@@ -16,15 +16,13 @@ from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient
 from agent_watch.rest_api.settings import (
     INGESTION_API_KEY_ENVIRONMENT_VARIABLE, load_ingestion_api_key, load_splunk_hec_settings)
 
-MAXIMUM_EVENTS_PER_BATCH: int = MAXIMUM_EVENTS_PER_INGESTION_BATCH
-
 ingestion_router: APIRouter = APIRouter(tags=["ingestion"])
 shared_ingestion_event_store: InMemoryEventStore = InMemoryEventStore()
 
 
 @dataclass(frozen=True)
 class EventBatchRequest:
-    events: Annotated[list[Any], Field(max_length=MAXIMUM_EVENTS_PER_BATCH)]
+    events: Annotated[list[Any], Field(max_length=MAXIMUM_EVENTS_PER_INGESTION_BATCH)]
 
 
 def require_ingestion_api_key(x_api_key: str = Header(default="")) -> None:
