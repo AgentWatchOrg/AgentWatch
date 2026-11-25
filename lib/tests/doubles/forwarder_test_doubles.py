@@ -76,6 +76,5 @@ class RecordingEventBatchSender:
             accepted_count=len(events) - len(rejected_events), rejected_events=rejected_events, duplicate_events=[])
 
 
-def build_unreadable_http_error(status_code: int) -> urllib.error.HTTPError:
-    return urllib.error.HTTPError("http://ingestion.test/v1/events", status_code, "Bad Gateway", Message(),
-                                  BodyThatBreaksWhileRead())
+def build_ingestion_http_error(error_body: io.BytesIO) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("http://ingestion.test/v1/events", 502, "Bad Gateway", Message(), error_body)
