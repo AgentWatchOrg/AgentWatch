@@ -38,11 +38,10 @@ def parse_tetragon_json_lines(tetragon_json_lines: str) -> tuple[list[JsonObject
 def normalize_tetragon_record(tetragon_record: JsonObject) -> JsonObject | None:
     if "process_exec" in tetragon_record:
         return normalize_process_exec(tetragon_record)
-    kprobe: JsonObject | None = tetragon_record.get("process_kprobe")
-    if kprobe is None:
+    if "process_kprobe" not in tetragon_record:
         logger.debug("Skipping unsupported Tetragon record type: %s", ", ".join(sorted(tetragon_record)))
         return None
-    function_name: str = kprobe.get("function_name", "")
+    function_name: str = str(require_object(tetragon_record, "process_kprobe").get("function_name", ""))
     if function_name in FILE_ACCESS_FUNCTION_NAMES:
         return normalize_file_access(tetragon_record)
     if function_name in NETWORK_CONNECT_FUNCTION_NAMES:
@@ -52,9 +51,9 @@ def normalize_tetragon_record(tetragon_record: JsonObject) -> JsonObject | None:
 
 
 def normalize_process_exec(tetragon_record: JsonObject) -> JsonObject:
-    process_exec: JsonObject = tetragon_record["process_exec"]
-    tetragon_process: JsonObject = process_exec.get("process", {})
-    tetragon_parent: JsonObject = process_exec.get("parent", {})
+    process_exec: JsonObject = require_object(tetragon_record, "process_exec")
+    tetragon_process: JsonObject = require_object(process_exec, "process")
+    tetragon_parent: JsonObject = require_object(process_exec, "parent")
     executable: str = require_text(tetragon_process, "binary")
     details: JsonObject = present_fields({
         "arguments": tetragon_process.get("arguments"),
@@ -66,7 +65,7 @@ def normalize_process_exec(tetragon_record: JsonObject) -> JsonObject:
 
 
 def normalize_file_access(tetragon_record: JsonObject) -> JsonObject:
-    kprobe: JsonObject = tetragon_record["process_kprobe"]
+    kprobe: JsonObject = require_object(tetragon_record, "process_kprobe")
     file_argument: JsonObject = first_object_argument(kprobe, "file_arg")
     path: str = require_text(file_argument, "path")
     access_mask: Any = first_argument_value(kprobe, "int_arg")
@@ -76,12 +75,12 @@ def normalize_file_access(tetragon_record: JsonObject) -> JsonObject:
         "permission": permission_bits_from_mode_text(file_argument.get("permission")),
     })
     return build_v1_event(tetragon_record, "file_access",
-                          build_process_fields(kprobe.get("process", {}), kprobe.get("parent", {})),
+                          build_process_fields(require_object(kprobe, "process"), require_object(kprobe, "parent")),
                           target=path, outcome=kprobe_outcome(kprobe), details=details)
 
 
 def normalize_network_connect(tetragon_record: JsonObject) -> JsonObject:
-    kprobe: JsonObject = tetragon_record["process_kprobe"]
+    kprobe: JsonObject = require_object(tetragon_record, "process_kprobe")
     socket_argument: JsonObject = first_object_argument(kprobe, "sock_arg")
     destination_address: str = require_text(socket_argument, "daddr")
     destination_port: int | None = valid_port(socket_argument.get("dport"))
@@ -95,7 +94,7 @@ def normalize_network_connect(tetragon_record: JsonObject) -> JsonObject:
         "dst_port": destination_port,
     })
     return build_v1_event(tetragon_record, "network_connect",
-                          build_process_fields(kprobe.get("process", {}), kprobe.get("parent", {})),
+                          build_process_fields(require_object(kprobe, "process"), require_object(kprobe, "parent")),
                           target=network_target(destination_address, destination_port, family),
                           outcome=kprobe_outcome(kprobe), details=details)
 
@@ -138,9 +137,17 @@ def require_text(container: JsonObject, field_name: str) -> str:
     return value
 
 
+def require_object(container: JsonObject, field_name: str) -> JsonObject:
+    value: object = container.get(field_name, {})
+    if not isinstance(value, dict):
+        raise MalformedSensorRecordError(f"Tetragon field {field_name} is not an object")
+    return value
+
+
 def first_argument_value(kprobe: JsonObject, argument_kind: str) -> Any:
-    for argument in kprobe.get("args", []):
-        if argument_kind in argument:
+    kprobe_arguments: object = kprobe.get("args")
+    for argument in kprobe_arguments if isinstance(kprobe_arguments, list) else []:
+        if isinstance(argument, dict) and argument_kind in argument:
             return argument[argument_kind]
     return None
 
@@ -170,7 +177,7 @@ def permission_bits_from_mode_text(mode_text: str | None) -> int | None:
 
 
 def kprobe_outcome(kprobe: JsonObject) -> str:
-    return_value: object = kprobe.get("return", {}).get("int_arg")
+    return_value: object = require_object(kprobe, "return").get("int_arg")
     if not isinstance(return_value, int):
         return "unknown"
     if return_value >= 0:
