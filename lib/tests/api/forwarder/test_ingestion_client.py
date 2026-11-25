@@ -48,6 +48,15 @@ def test_send_event_batch_reports_a_connection_failure(
     assert ingestion_application.api_key not in str(raised_error.value)
 
 
+def test_send_event_batch_reports_a_successful_response_that_is_not_json_text(
+        ingestion_application: IngestionApplicationUnderTest, valid_process_exec_event: JsonObject) -> None:
+    ingestion_application.urlopen.successful_response_body = "<html>Café Wi-Fi login</html>".encode("latin-1")
+    ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, ingestion_application.api_key)
+
+    with pytest.raises(IngestionRequestError, match="not JSON"):
+        ingestion_client.send_event_batch([valid_process_exec_event])
+
+
 def test_ingestion_client_builds_the_events_url_from_a_base_url_with_a_trailing_slash() -> None:
     assert IngestionClient("http://127.0.0.1:8000/", "key").events_url == "http://127.0.0.1:8000/v1/events"
 

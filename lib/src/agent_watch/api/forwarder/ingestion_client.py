@@ -38,7 +38,7 @@ class IngestionClient:
                 f"POST {self.events_url} returned HTTP {http_error.code}: {error_body}") from http_error
         except (urllib.error.URLError, http.client.HTTPException, OSError) as connection_error:
             raise IngestionRequestError(f"Could not reach {self.events_url}: {connection_error}") from connection_error
-        except json.JSONDecodeError as decode_error:
+        except ValueError as decode_error:
             raise IngestionRequestError(f"POST {self.events_url} returned a body that is not JSON") from decode_error
         return parse_ingestion_batch_result(response_body)
 

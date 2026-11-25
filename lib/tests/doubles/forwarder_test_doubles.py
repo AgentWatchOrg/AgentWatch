@@ -42,11 +42,14 @@ class FakeIngestionResponse:
 class IngestionApplicationUrlopen:
     def __init__(self, api_client: TestClient) -> None:
         self.failure: Exception | None = None
+        self.successful_response_body: bytes | None = None
         self._api_client: TestClient = api_client
 
     def __call__(self, http_request: urllib.request.Request, timeout: float) -> FakeIngestionResponse:
         if self.failure is not None:
             raise self.failure
+        if self.successful_response_body is not None:
+            return FakeIngestionResponse(self.successful_response_body)
         request_body: bytes = http_request.data if isinstance(http_request.data, bytes) else b""
         response: Response = self._api_client.request(
             http_request.get_method(), urllib.parse.urlsplit(http_request.full_url).path,
