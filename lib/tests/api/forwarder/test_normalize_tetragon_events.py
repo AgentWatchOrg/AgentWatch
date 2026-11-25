@@ -5,10 +5,10 @@ from doubles.forwarder_test_doubles import TetragonRecordLoader
 
 from agent_watch.api.forwarder.models import MalformedSensorRecordError
 from agent_watch.api.forwarder.normalize_tetragon_events import (
-    build_process_fields, file_operation_name, first_argument_value, first_object_argument, kprobe_outcome,
-    network_target, normalize_file_access, normalize_network_connect, normalize_process_exec,
+    build_process_fields, build_v1_event, file_operation_name, first_argument_value, first_object_argument,
+    kprobe_outcome, network_target, normalize_file_access, normalize_network_connect, normalize_process_exec,
     normalize_tetragon_record, parse_tetragon_json_lines, permission_bits_from_mode_text, present_fields,
-    require_text, valid_port)
+    require_object, require_text, valid_port)
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.schema_validator import SchemaValidator
 
@@ -75,6 +75,36 @@ def test_normalize_network_connect_maps_the_destination(load_tetragon_record: Te
     assert normalized_event["details"]["family"] == "ipv4"
 
 
+@pytest.mark.parametrize("tetragon_record", [
+    {"process_kprobe": "x"}, {"process_exec": []}, {"process_exec": {"process": "x"}},
+    {"process_kprobe": {"function_name": "tcp_connect", "args": [{"sock_arg": {"daddr": "10.0.0.5"}}], "return": 0}},
+], ids=["kprobe-text", "exec-list", "process-text", "return-number"])
+def test_normalize_tetragon_record_rejects_a_container_that_is_not_an_object(tetragon_record: JsonObject) -> None:
+    with pytest.raises(MalformedSensorRecordError, match="is not an object"):
+        normalize_tetragon_record(tetragon_record)
+
+
+def test_build_v1_event_sets_the_fixed_contract_fields() -> None:
+    event: JsonObject = build_v1_event({"time": "2026-11-18T12:00:00Z", "node_name": "host"}, "process_exec", {},
+                                       target="/bin/ls", outcome="success", details={})
+
+    assert (event["schema_version"], event["source"], event["host"]) == ("1.0", "tetragon", "host")
+    assert event["agent"] == {"attribution_status": "unknown", "session_id": None}
+
+
+@pytest.mark.parametrize("missing_field_name", ["time", "node_name"])
+def test_build_v1_event_rejects_a_record_without_time_or_host(missing_field_name: str) -> None:
+    tetragon_record: JsonObject = {"time": "2026-11-18T12:00:00Z", "node_name": "host"}
+    del tetragon_record[missing_field_name]
+
+    with pytest.raises(MalformedSensorRecordError, match=missing_field_name):
+        build_v1_event(tetragon_record, "process_exec", {}, target="/bin/ls", outcome="success", details={})
+
+
+def test_require_object_treats_a_missing_field_as_empty() -> None:
+    assert require_object({}, "parent") == {}
+
+
 def test_build_process_fields_omits_fields_the_sensor_did_not_provide() -> None:
     assert build_process_fields({"pid": 10, "binary": "/bin/ls"}, {}) == {"pid": 10, "executable": "/bin/ls"}
 
@@ -97,6 +127,11 @@ def test_first_argument_value_returns_the_first_matching_argument() -> None:
 
 def test_first_object_argument_returns_an_empty_object_when_absent() -> None:
     assert first_object_argument({"args": [{"int_arg": 4}]}, "file_arg") == {}
+
+
+def test_first_argument_value_skips_arguments_that_are_not_objects() -> None:
+    assert first_argument_value({"args": ["int_arg", {"int_arg": 4}]}, "int_arg") == 4
+    assert first_argument_value({"args": "int_arg"}, "int_arg") is None
 
 
 @pytest.mark.parametrize(("function_name", "access_mask", "expected_operation"), [
