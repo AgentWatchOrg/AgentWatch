@@ -4,8 +4,9 @@ from typing import Protocol
 
 from agent_watch.api.forwarder.assign_event_identities import EventIdentityAssigner
 from agent_watch.api.forwarder.event_buffer import EventBuffer
-from agent_watch.api.forwarder.models import ForwardingResult, MalformedSensorRecordError, PlannedForwarding
-from agent_watch.api.forwarder.normalize_tetragon_events import normalize_tetragon_record
+from agent_watch.api.forwarder.models import (
+    ForwarderError, ForwardingResult, MalformedSensorRecordError, PlannedForwarding)
+from agent_watch.api.forwarder.normalize_tetragon_events import normalize_tetragon_record, parse_tetragon_json_lines
 from agent_watch.api.forwarder.redact_event_values import redact_event
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.models import MAXIMUM_EVENTS_PER_INGESTION_BATCH, IngestionBatchResult, RejectedEvent
@@ -65,13 +66,27 @@ def apply_event_forwarding(planned_forwarding: PlannedForwarding, event_buffer: 
 
 def forward_tetragon_records(
         tetragon_records: list[JsonObject], identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
-        event_batch_sender: EventBatchSender, is_dry_run: bool) -> ForwardingResult:
+        event_batch_sender: EventBatchSender | None, is_dry_run: bool) -> ForwardingResult:
+    if not is_dry_run and event_batch_sender is None:
+        raise ForwarderError("Forwarding needs an event batch sender unless it is a dry run")
     planned_forwarding: PlannedForwarding = plan_event_forwarding(tetragon_records, identity_assigner)
-    delivery_result: IngestionBatchResult = (
-        IngestionBatchResult(accepted_count=0, rejected_events=[], duplicate_events=[]) if is_dry_run
-        else apply_event_forwarding(planned_forwarding, event_buffer, event_batch_sender))
+    delivery_result: IngestionBatchResult = IngestionBatchResult(accepted_count=0, rejected_events=[],
+                                                                 duplicate_events=[])
+    if event_batch_sender is not None and not is_dry_run:
+        delivery_result = apply_event_forwarding(planned_forwarding, event_buffer, event_batch_sender)
     return ForwardingResult(
         planned_event_count=len(planned_forwarding.events),
         skipped_record_count=planned_forwarding.skipped_record_count,
         accepted_count=delivery_result.accepted_count, rejected_events=delivery_result.rejected_events,
         duplicate_events=delivery_result.duplicate_events, unsent_event_count=event_buffer.unsent_event_count())
+
+
+def forward_tetragon_export(
+        tetragon_json_lines: str, identity_assigner: EventIdentityAssigner, event_buffer: EventBuffer,
+        event_batch_sender: EventBatchSender | None, is_dry_run: bool) -> ForwardingResult:
+    tetragon_records: list[JsonObject]
+    malformed_line_count: int
+    tetragon_records, malformed_line_count = parse_tetragon_json_lines(tetragon_json_lines)
+    forwarding_result: ForwardingResult = forward_tetragon_records(
+        tetragon_records, identity_assigner, event_buffer, event_batch_sender, is_dry_run)
+    return replace(forwarding_result, malformed_line_count=malformed_line_count)

@@ -1,0 +1,55 @@
+# Forwarder
+
+Turns Tetragon records into [v1 telemetry events](telemetry-v1.md) and sends them in batches to `POST /v1/events` on the [web server](infrastructure/web-server.md). Code: `lib/src/agent_watch/api/forwarder/`.
+
+```bash
+tetra getevents -o json > tetragon-events.json
+export INGESTION_URL=<web server base URL>
+export INGESTION_API_KEY=<the server's AGENT_WATCH_INGESTION_API_KEY>
+agent-watch forwarder forward-tetragon-events --tetragon-events-file tetragon-events.json
+```
+
+`tetra getevents` keeps writing until you stop it with Ctrl+C. The command reads its whole input, then sends it, so give it a finished file. Do not pipe `tetra getevents` into it: the input never ends, and Ctrl+C stops both programs before anything is sent. Set the API key through `INGESTION_API_KEY` rather than the flag, so it does not show in the process list.
+
+| Option | Env | Purpose |
+|---|---|---|
+| `--tetragon-events-file` | `TETRAGON_EVENTS_FILE` | Finished Tetragon JSON export, one record per line; `-` reads stdin to its end |
+| `--ingestion-url` | `INGESTION_URL` | Base URL of the REST API; required unless `--dry-run` |
+| `--ingestion-api-key` | `INGESTION_API_KEY` | Sent as `X-Api-Key`; required unless `--dry-run` |
+| `--dry-run` | `IS_DRY_RUN` | Normalize and redact without sending or contacting the server |
+
+The command exits `1` when the request fails or any event is rejected, and logs the reason for each rejection.
+
+## Mapping
+
+| Tetragon record | `activity_type` | `target` | `details` |
+|---|---|---|---|
+| `process_exec` | `process_exec` | `process.binary` | `arguments`, `cwd`, `parent_executable` from `parent.binary` |
+| `process_kprobe` on `security_file_permission` or `security_file_open` | `file_access` | file path | `path`, `operation` from the access mask (left out when the mask shows neither a read nor a write), `permission` from the mode text, including setuid, setgid, and sticky bits |
+| `process_kprobe` on `tcp_connect` | `network_connect` | `daddr:dport` | `protocol`, `family`, `src_addr`, `src_port`, `dst_addr`, `dst_port` |
+
+`process` comes from `process` (`exec_id`, `parent_exec_id`, `pid`, `binary`, `uid`) and `ppid` from `parent.pid`. `host` is `node_name` and `timestamp` is `time`. Only these fields are copied, so environment variables and file contents never enter an event. A kprobe `return` of `0` or more is `success`, `-1` or `-13` is `denied`, and anything else or no return value is `unknown`. Every other record type is skipped and counted, and so is a `process_exec` from Tetragon's startup scan of running processes (`procFS` in `process.flags`), because it is not a new program start. Attribution is always `unknown` until session correlation ([#5](https://github.com/AgentWatchOrg/AgentWatch/issues/5)) is built.
+
+Raw inputs and the exact events they produce are in [documentation/fixtures/tetragon](https://github.com/AgentWatchOrg/AgentWatch/tree/main/documentation/fixtures/tetragon). They follow Tetragon's documented JSON export and are replaced by host samples from [#57](https://github.com/AgentWatchOrg/AgentWatch/issues/57) when those land. auditd fallback parsing waits for #57 to confirm which operations auditd covers.
+
+## Redaction
+
+Runs before `event_id` is assigned and before the event enters the buffer, on every text value in `details` and on `target`. Each rule replaces the secret with `*****` and is listed in `redaction.rules`.
+
+| Rule | Matches |
+|---|---|
+| `authorization-header` | the credential in an `Authorization:` header, keeping its scheme word, such as `Bearer`, `Basic`, or `Splunk` |
+| `cookie-header` | the value of a `Cookie:` or `Set-Cookie:` header |
+| `secret-json-field` | the string value of a JSON key whose name contains `password`, `secret`, `token`, `api-key`, or `access-key`, such as `{"api_key":"<value>"}` |
+| `secret-header` | a header whose name contains `password`, `secret`, `token`, `api-key`, or `access-key`, such as `X-Api-Key: <value>` |
+| `password-arg` | a flag whose name contains `password`, `passwd`, `pwd`, `secret`, `token`, `api-key`, or `access-key`, followed by `=` or a space |
+| `user-credential` | the password in `-u user:password` or `--user user:password` |
+| `url-credential` | `user:password@` in a URL |
+| `url-query` | a URL query string |
+| `secret-assignment` | `NAME=value` where `NAME` contains `PASSWORD`, `PASSWD`, `_PWD`, `SECRET`, `TOKEN`, `API_KEY`, or `ACCESS_KEY` |
+| `api-key` | `sk-…`, `github_pat_…`, `ghp_…`, `gho_…`, `ghs_…`, `ghu_…`, `AKIA…`, and `xox…-` keys |
+| `argument-truncation` | `arguments` longer than 1024 characters |
+
+## Delivery
+
+`event_id` and `forwarder_seq` are assigned as the [contract](telemetry-v1.md#event-identity) describes. Events wait in an in-memory buffer keyed by `event_id` and are sent in batches of up to 1000. A failed request leaves them in the buffer, and the next send reuses the stored events, so the IDs do not change. After a response, accepted, duplicate, and rejected events leave the buffer. The buffer does not survive a restart.

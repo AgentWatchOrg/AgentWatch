@@ -41,3 +41,4 @@ class ForwardingResult:
     rejected_events: list[RejectedEvent]
     duplicate_events: list[RejectedEvent]
     unsent_event_count: int
+    malformed_line_count: int = 0

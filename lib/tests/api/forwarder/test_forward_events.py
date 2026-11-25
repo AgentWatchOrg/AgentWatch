@@ -10,9 +10,11 @@ from agent_watch.api.forwarder import forward_events
 from agent_watch.api.forwarder.assign_event_identities import EventIdentityAssigner
 from agent_watch.api.forwarder.event_buffer import InMemoryEventBuffer
 from agent_watch.api.forwarder.forward_events import (
-    apply_event_forwarding, forward_tetragon_records, plan_event_forwarding, send_buffered_events)
+    apply_event_forwarding, forward_tetragon_export, forward_tetragon_records, plan_event_forwarding,
+    send_buffered_events)
 from agent_watch.api.forwarder.ingestion_client import IngestionClient
-from agent_watch.api.forwarder.models import ForwardingResult, IngestionRequestError, PlannedForwarding
+from agent_watch.api.forwarder.models import (
+    ForwarderError, ForwardingResult, IngestionRequestError, PlannedForwarding)
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.models import IngestionBatchResult
 from agent_watch.api.ingestion.schema_validator import SchemaValidator
@@ -89,14 +91,15 @@ def test_send_buffered_events_sends_logged_batches_and_numbers_rejections_across
     assert "Delivered 2 event(s): 2 accepted, 0 rejected, 0 duplicate" in caplog.text
 
 
-def test_forward_tetragon_records_in_a_dry_run_sends_nothing(
+def test_forward_tetragon_records_in_a_dry_run_sends_and_buffers_nothing(
         load_tetragon_record: TetragonRecordLoader, identity_assigner: EventIdentityAssigner,
-        event_buffer: InMemoryEventBuffer, recording_sender: RecordingEventBatchSender) -> None:
+        event_buffer: InMemoryEventBuffer) -> None:
     result: ForwardingResult = forward_tetragon_records(
-        [load_tetragon_record("process-exec")], identity_assigner, event_buffer, recording_sender, is_dry_run=True)
+        [load_tetragon_record("process-exec")], identity_assigner, event_buffer, event_batch_sender=None,
+        is_dry_run=True)
 
-    assert result.planned_event_count == 1
-    assert recording_sender.sent_batches == []
+    assert (result.planned_event_count, result.accepted_count, result.unsent_event_count) == (1, 0, 0)
+    assert event_buffer.unsent_event_count() == 0
 
 
 def test_forward_tetragon_records_delivers_every_event_type_to_ingestion(
@@ -114,3 +117,22 @@ def test_forward_tetragon_records_delivers_every_event_type_to_ingestion(
     resend_result: IngestionBatchResult = apply_event_forwarding(
         plan_event_forwarding(tetragon_records, EventIdentityAssigner()), event_buffer, ingestion_client)
     assert len(resend_result.duplicate_events) == 3
+
+
+def test_forward_tetragon_export_parses_the_lines_and_counts_the_malformed_ones(
+        load_tetragon_record: TetragonRecordLoader, identity_assigner: EventIdentityAssigner,
+        event_buffer: InMemoryEventBuffer) -> None:
+    tetragon_json_lines: str = json.dumps(load_tetragon_record("process-exec")) + "\nnot json\n"
+
+    result: ForwardingResult = forward_tetragon_export(
+        tetragon_json_lines, identity_assigner, event_buffer, event_batch_sender=None, is_dry_run=True)
+
+    assert (result.planned_event_count, result.malformed_line_count) == (1, 1)
+
+
+def test_forward_tetragon_records_refuses_a_real_run_without_a_sender(
+        load_tetragon_record: TetragonRecordLoader, identity_assigner: EventIdentityAssigner,
+        event_buffer: InMemoryEventBuffer) -> None:
+    with pytest.raises(ForwarderError, match="needs an event batch sender"):
+        forward_tetragon_records([load_tetragon_record("process-exec")], identity_assigner, event_buffer,
+                                 event_batch_sender=None, is_dry_run=False)

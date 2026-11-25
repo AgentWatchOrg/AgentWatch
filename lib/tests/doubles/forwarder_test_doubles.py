@@ -10,7 +10,7 @@ from typing import Protocol
 from fastapi.testclient import TestClient
 from httpx2 import Response
 
-from agent_watch.api.forwarder.models import IngestionRequestError
+from agent_watch.api.forwarder.models import ForwardingResult, IngestionRequestError
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.event_store import InMemoryEventStore
 from agent_watch.api.ingestion.models import IngestionBatchResult, RejectedEvent
@@ -22,6 +22,10 @@ FAKE_SECRET_VALUES: list[str] = [
 
 class TetragonRecordLoader(Protocol):
     def __call__(self, fixture_name: str) -> JsonObject: ...
+
+
+class ForwardingResultFactory(Protocol):
+    def __call__(self, rejected_events: list[RejectedEvent]) -> ForwardingResult: ...
 
 
 class IngestionApplicationUrlopen:
