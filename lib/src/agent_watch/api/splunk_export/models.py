@@ -3,7 +3,6 @@ from dataclasses import dataclass
 TELEMETRY_SOURCETYPE: str = "agentwatch:telemetry"
 TELEMETRY_SOURCE: str = "agentwatch:ingestion"
 HEC_EVENT_PATH: str = "/services/collector/event"
-PERMANENT_REJECTION_STATUS_CODES: frozenset[int] = frozenset({400, 413})
 
 
 class SplunkExportError(Exception):
