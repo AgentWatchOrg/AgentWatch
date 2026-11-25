@@ -1,5 +1,8 @@
+import http.client
+import urllib.error
+
 import pytest
-from doubles.forwarder_test_doubles import LiveIngestionServer
+from doubles.forwarder_test_doubles import IngestionApplicationUnderTest
 
 from agent_watch.api.forwarder.ingestion_client import (
     IngestionClient, parse_ingestion_batch_result, parse_rejected_events)
@@ -9,18 +12,18 @@ from agent_watch.api.ingestion.models import IngestionBatchResult, RejectedEvent
 
 
 def test_send_event_batch_delivers_an_authenticated_batch(
-        live_ingestion_server: LiveIngestionServer, valid_process_exec_event: JsonObject) -> None:
-    ingestion_client: IngestionClient = IngestionClient(live_ingestion_server.url, live_ingestion_server.api_key)
+        ingestion_application: IngestionApplicationUnderTest, valid_process_exec_event: JsonObject) -> None:
+    ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, ingestion_application.api_key)
 
     batch_result: IngestionBatchResult = ingestion_client.send_event_batch([valid_process_exec_event])
 
     assert batch_result == IngestionBatchResult(accepted_count=1, rejected_events=[], duplicate_events=[])
-    assert live_ingestion_server.event_store.contains(valid_process_exec_event["event_id"])
+    assert ingestion_application.event_store.contains(valid_process_exec_event["event_id"])
 
 
 def test_send_event_batch_reports_a_rejected_api_key_without_revealing_it(
-        live_ingestion_server: LiveIngestionServer, valid_process_exec_event: JsonObject) -> None:
-    ingestion_client: IngestionClient = IngestionClient(live_ingestion_server.url, "wrong-secret-key")
+        ingestion_application: IngestionApplicationUnderTest, valid_process_exec_event: JsonObject) -> None:
+    ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, "wrong-secret-key")
 
     with pytest.raises(IngestionRequestError, match="HTTP 401") as raised_error:
         ingestion_client.send_event_batch([valid_process_exec_event])
@@ -28,12 +31,21 @@ def test_send_event_batch_reports_a_rejected_api_key_without_revealing_it(
     assert "wrong-secret-key" not in str(raised_error.value)
 
 
-def test_send_event_batch_reports_an_unreachable_endpoint(
-        unused_local_url: str, valid_process_exec_event: JsonObject) -> None:
-    ingestion_client: IngestionClient = IngestionClient(unused_local_url, "key", request_timeout_seconds=2)
+@pytest.mark.parametrize("connection_failure", [
+    urllib.error.URLError("[Errno 111] Connection refused"),
+    http.client.RemoteDisconnected("Remote end closed connection without response"),
+    TimeoutError("timed out"),
+], ids=["unreachable", "dropped-before-response", "timeout"])
+def test_send_event_batch_reports_a_connection_failure(
+        connection_failure: Exception, ingestion_application: IngestionApplicationUnderTest,
+        valid_process_exec_event: JsonObject) -> None:
+    ingestion_application.urlopen.failure = connection_failure
+    ingestion_client: IngestionClient = IngestionClient(ingestion_application.url, ingestion_application.api_key)
 
-    with pytest.raises(IngestionRequestError, match="Could not reach"):
+    with pytest.raises(IngestionRequestError, match="Could not reach") as raised_error:
         ingestion_client.send_event_batch([valid_process_exec_event])
+
+    assert ingestion_application.api_key not in str(raised_error.value)
 
 
 def test_ingestion_client_builds_the_events_url_from_a_base_url_with_a_trailing_slash() -> None:
