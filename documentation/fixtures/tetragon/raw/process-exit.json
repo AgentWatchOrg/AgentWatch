@@ -1,10 +1,6 @@
 {
   "process_exit": {
-    "process": {
-      "exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw",
-      "pid": 2450,
-      "binary": "/usr/bin/curl"
-    },
+    "process": {"exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw", "pid": 2450, "binary": "/usr/bin/curl"},
     "status": 0
   },
   "node_name": "agentwatch-test-01",
