@@ -10,7 +10,7 @@ from agent_watch.api.ingestion.event_store import EventStore, InMemoryEventStore
 from agent_watch.api.ingestion.ingest_events import ingest_event_batch
 from agent_watch.api.ingestion.models import EventValidator, IngestionBatchResult
 from agent_watch.api.ingestion.schema_validator import load_telemetry_schema_validator
-from agent_watch.api.splunk_export.export_events import HecEventSender, export_unexported_events
+from agent_watch.api.splunk_export.export_events import SplunkExporter
 from agent_watch.api.splunk_export.models import SplunkHecSettings
 from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient
 from agent_watch.rest_api.settings import (
@@ -50,13 +50,13 @@ def get_splunk_hec_settings() -> SplunkHecSettings | None:
 
 
 @lru_cache(maxsize=4)
-def build_splunk_hec_client(hec_settings: SplunkHecSettings) -> SplunkHecClient:
-    return SplunkHecClient(hec_settings)
+def build_splunk_exporter(hec_settings: SplunkHecSettings) -> SplunkExporter:
+    return SplunkExporter(SplunkHecClient(hec_settings), hec_settings.index)
 
 
-def get_splunk_hec_client(
-        hec_settings: SplunkHecSettings | None = Depends(get_splunk_hec_settings)) -> HecEventSender | None:
-    return build_splunk_hec_client(hec_settings) if hec_settings else None
+def get_splunk_exporter(
+        hec_settings: SplunkHecSettings | None = Depends(get_splunk_hec_settings)) -> SplunkExporter | None:
+    return build_splunk_exporter(hec_settings) if hec_settings else None
 
 
 @ingestion_router.post(
@@ -69,9 +69,8 @@ def post_events(
         event_batch: EventBatchRequest, background_tasks: BackgroundTasks,
         event_store: EventStore = Depends(get_ingestion_event_store),
         schema_validator: EventValidator = Depends(get_telemetry_schema_validator),
-        hec_settings: SplunkHecSettings | None = Depends(get_splunk_hec_settings),
-        hec_event_sender: HecEventSender | None = Depends(get_splunk_hec_client)) -> IngestionBatchResult:
+        splunk_exporter: SplunkExporter | None = Depends(get_splunk_exporter)) -> IngestionBatchResult:
     batch_result: IngestionBatchResult = ingest_event_batch(event_batch.events, schema_validator, event_store)
-    if hec_settings and hec_event_sender:
-        background_tasks.add_task(export_unexported_events, event_store, hec_event_sender, hec_settings.index)
+    if splunk_exporter:
+        background_tasks.add_task(splunk_exporter.export_waiting_events, event_store)
     return batch_result

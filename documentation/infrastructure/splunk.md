@@ -48,7 +48,7 @@ After `POST /v1/events` accepts events, the [web server](web-server.md) sends th
 | `AGENT_WATCH_SPLUNK_INDEX` | Index to write to. When unset, the token's default index (`main` locally). |
 | `AGENT_WATCH_SPLUNK_HEC_VERIFY_TLS` | `false` skips certificate checks, for the local self-signed certificate only. |
 
-A failed export logs `Splunk export failed: …` at error level without the token. The events wait in memory and are retried with the next batch the endpoint receives, even one that holds only duplicates. They are lost on restart. A batch Splunk rejects because of its data (HTTP 413, or 400 with HEC code 5, 6, 12, 13, or 15) is split until the bad event is found; that event is logged with its `event_id` and dropped.
+A failed export logs `Splunk export failed: …` at error level without the token. The events wait in memory and are retried with the next batch the endpoint receives, even one that holds only duplicates. Only one export runs at a time; a batch that arrives during an export leaves its events for the next one, so a slow or unreachable Splunk ties up at most one worker thread. They are lost on restart. A batch Splunk rejects because of its data (HTTP 413, or 400 with HEC code 5, 6, 12, 13, or 15) is split until the bad event is found; that event is logged with its `event_id` and dropped.
 
 The deployed web server has no Splunk settings yet, so it does not export.
 

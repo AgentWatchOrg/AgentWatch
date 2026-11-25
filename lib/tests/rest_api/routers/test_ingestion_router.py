@@ -13,10 +13,10 @@ from telemetry_fixture_paths import VALID_FIXTURE_DIRECTORY, load_json_object
 from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.event_store import InMemoryEventStore
 from agent_watch.api.splunk_export.models import SplunkHecSettings
-from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient
+from agent_watch.api.splunk_export.export_events import SplunkExporter
 from agent_watch.rest_api.application import application
 from agent_watch.rest_api.routers.ingestion_router import (
-    MAXIMUM_EVENTS_PER_BATCH, build_splunk_hec_client, get_ingestion_event_store, get_splunk_hec_client,
+    MAXIMUM_EVENTS_PER_BATCH, build_splunk_exporter, get_ingestion_event_store, get_splunk_exporter,
     get_splunk_hec_settings, require_ingestion_api_key)
 from agent_watch.rest_api.settings import INGESTION_API_KEY_ENVIRONMENT_VARIABLE, SPLUNK_HEC_URL_ENVIRONMENT_VARIABLE
 
@@ -170,31 +170,21 @@ def unreachable_splunk(
     del application.dependency_overrides[get_splunk_hec_settings]
 
 
-def override_splunk_export(
-        splunk_hec_settings: SplunkHecSettings, recording_sender: RecordingHecEventSender) -> None:
-    application.dependency_overrides[get_splunk_hec_settings] = lambda: splunk_hec_settings
-    application.dependency_overrides[get_splunk_hec_client] = lambda: recording_sender
-
-
-def remove_splunk_export_override() -> None:
-    del application.dependency_overrides[get_splunk_hec_settings]
-    del application.dependency_overrides[get_splunk_hec_client]
-
-
 @pytest.fixture
-def recording_splunk_export(splunk_hec_settings: SplunkHecSettings) -> Iterator[RecordingHecEventSender]:
+def recording_splunk_export() -> Iterator[RecordingHecEventSender]:
     recording_sender: RecordingHecEventSender = RecordingHecEventSender()
-    override_splunk_export(splunk_hec_settings, recording_sender)
+    application.dependency_overrides[get_splunk_exporter] = lambda: SplunkExporter(recording_sender, index=None)
     yield recording_sender
-    remove_splunk_export_override()
+    del application.dependency_overrides[get_splunk_exporter]
 
 
 @pytest.fixture
-def splunk_export_failing_once(splunk_hec_settings: SplunkHecSettings) -> Iterator[RecordingHecEventSender]:
+def splunk_export_failing_once() -> Iterator[RecordingHecEventSender]:
     sender_failing_first_request: RecordingHecEventSender = RecordingHecEventSender(frozenset({1}))
-    override_splunk_export(splunk_hec_settings, sender_failing_first_request)
+    application.dependency_overrides[get_splunk_exporter] = lambda: SplunkExporter(
+        sender_failing_first_request, index=None)
     yield sender_failing_first_request
-    remove_splunk_export_override()
+    del application.dependency_overrides[get_splunk_exporter]
 
 
 @pytest.fixture
@@ -265,14 +255,14 @@ def test_post_events_does_not_export_when_splunk_is_not_configured(
     assert isolated_event_store.pop_unexported_events() == [valid_process_exec_event]
 
 
-def test_get_splunk_hec_client_builds_a_client_only_when_splunk_is_configured(
+def test_get_splunk_exporter_builds_an_exporter_only_when_splunk_is_configured(
         splunk_hec_settings: SplunkHecSettings) -> None:
-    assert isinstance(get_splunk_hec_client(splunk_hec_settings), SplunkHecClient)
-    assert get_splunk_hec_client(None) is None
+    assert isinstance(get_splunk_exporter(splunk_hec_settings), SplunkExporter)
+    assert get_splunk_exporter(None) is None
 
 
-def test_build_splunk_hec_client_reuses_one_client_per_configuration(splunk_hec_settings: SplunkHecSettings) -> None:
-    assert build_splunk_hec_client(splunk_hec_settings) is build_splunk_hec_client(splunk_hec_settings)
+def test_build_splunk_exporter_reuses_one_exporter_per_configuration(splunk_hec_settings: SplunkHecSettings) -> None:
+    assert build_splunk_exporter(splunk_hec_settings) is build_splunk_exporter(splunk_hec_settings)
 
 
 def test_get_splunk_hec_settings_reads_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:

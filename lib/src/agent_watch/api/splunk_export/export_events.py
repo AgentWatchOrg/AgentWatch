@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime
+from threading import Lock
 from typing import Protocol
 
 from agent_watch.api.github_client import JsonObject
@@ -16,6 +17,22 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 class HecEventSender(Protocol):
     def send_hec_events(self, hec_events: list[JsonObject]) -> None: ...
+
+
+class SplunkExporter:
+    def __init__(self, hec_event_sender: HecEventSender, index: str | None) -> None:
+        self._hec_event_sender: HecEventSender = hec_event_sender
+        self._index: str | None = index
+        self._export_lock: Lock = Lock()
+
+    def export_waiting_events(self, event_store: EventStore) -> ExportResult | None:
+        if not self._export_lock.acquire(blocking=False):
+            logger.debug("A Splunk export is already running; the waiting events go with the next one")
+            return None
+        try:
+            return export_unexported_events(event_store, self._hec_event_sender, self._index)
+        finally:
+            self._export_lock.release()
 
 
 def epoch_seconds_from_timestamp(timestamp: str) -> float | None:
