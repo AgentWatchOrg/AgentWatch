@@ -8,9 +8,11 @@ from agent_watch.api.github_client import JsonObject
 from agent_watch.api.ingestion.event_store import InMemoryEventStore
 from agent_watch.api.splunk_export import export_events
 from agent_watch.api.splunk_export.export_events import (
-    build_hec_event, epoch_seconds_from_timestamp, export_unexported_events, plan_hec_event_batches,
-    requeue_unsent_events)
-from agent_watch.api.splunk_export.models import ExportResult
+    apply_hec_event_batches, build_hec_event, epoch_seconds_from_timestamp, export_unexported_events,
+    plan_hec_event_batches, requeue_unsent_events)
+from agent_watch.api.splunk_export.models import ExportResult, HecExportProgress, SplunkExportError
+
+PERMANENT_REJECTION: SplunkExportError = SplunkExportError("returned HTTP 413: Content too large", is_retryable=False)
 
 
 @pytest.fixture
@@ -60,9 +62,40 @@ def test_plan_hec_event_batches_splits_events_into_requests(
     assert [len(hec_event_batch) for hec_event_batch in hec_event_batches] == [2, 2, 1]
 
 
+def test_plan_hec_event_batches_starts_a_new_request_before_the_byte_limit(
+        monkeypatch: pytest.MonkeyPatch, valid_process_exec_event: JsonObject) -> None:
+    monkeypatch.setattr(export_events, "MAXIMUM_BYTES_PER_HEC_REQUEST", 1)
+
+    hec_event_batches: list[list[JsonObject]] = plan_hec_event_batches([valid_process_exec_event] * 3, index=None)
+
+    assert [len(hec_event_batch) for hec_event_batch in hec_event_batches] == [1, 1, 1]
+
+
+def test_apply_hec_event_batches_stops_at_a_retryable_failure() -> None:
+    export_progress: HecExportProgress = HecExportProgress()
+
+    apply_hec_event_batches([[{"event": {}}] * 2, [{"event": {}}], [{"event": {}}]],
+                            RecordingHecEventSender(frozenset({2})), export_progress)
+
+    assert export_progress == HecExportProgress(sent_event_count=2, dropped_event_count=0)
+
+
+def test_apply_hec_event_batches_drops_a_permanently_rejected_batch_and_continues(
+        caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    export_progress: HecExportProgress = HecExportProgress()
+    monkeypatch.setattr(logging.getLogger("agent_watch"), "propagate", True)
+
+    with caplog.at_level(logging.ERROR, logger="agent_watch"):
+        apply_hec_event_batches([[{"event": {"event_id": "sha256:too-big"}}], [{"event": {"event_id": "b"}}]],
+                                RecordingHecEventSender(frozenset({1}), failure=PERMANENT_REJECTION), export_progress)
+
+    assert export_progress == HecExportProgress(sent_event_count=1, dropped_event_count=1)
+    assert "Splunk permanently rejected 1 event(s), dropping sha256:too-big" in caplog.text
+
+
 def test_requeue_unsent_events_puts_back_only_the_events_after_the_sent_ones(
         event_store: InMemoryEventStore, accepted_events: list[JsonObject]) -> None:
-    unsent_event_count: int = requeue_unsent_events(event_store, accepted_events, sent_event_count=1)
+    unsent_event_count: int = requeue_unsent_events(event_store, accepted_events, handled_event_count=1)
 
     assert unsent_event_count == 1
     assert event_store.pop_unexported_events() == accepted_events[1:]
@@ -77,8 +110,23 @@ def test_export_unexported_events_keeps_only_the_events_after_a_failed_request(
     export_result: ExportResult = export_unexported_events(
         event_store_with_accepted_events, sender_failing_second_request, index=None)
 
-    assert export_result == ExportResult(exported_event_count=1, failed_event_count=1)
+    assert export_result == ExportResult(exported_event_count=1, dropped_event_count=0, failed_event_count=1)
     assert event_store_with_accepted_events.pop_unexported_events() == accepted_events[1:]
+
+
+def test_export_unexported_events_does_not_let_a_rejected_batch_block_the_queue(
+        monkeypatch: pytest.MonkeyPatch, event_store_with_accepted_events: InMemoryEventStore,
+        accepted_events: list[JsonObject]) -> None:
+    monkeypatch.setattr(export_events, "MAXIMUM_EVENTS_PER_HEC_REQUEST", 1)
+    sender_rejecting_first_request: RecordingHecEventSender = RecordingHecEventSender(
+        frozenset({1}), failure=PERMANENT_REJECTION)
+
+    export_result: ExportResult = export_unexported_events(
+        event_store_with_accepted_events, sender_rejecting_first_request, index=None)
+
+    assert export_result == ExportResult(exported_event_count=1, dropped_event_count=1, failed_event_count=0)
+    assert sender_rejecting_first_request.sent_events() == accepted_events[1:]
+    assert event_store_with_accepted_events.pop_unexported_events() == []
 
 
 def test_export_unexported_events_keeps_unsent_events_when_an_unexpected_error_escapes(
@@ -100,7 +148,7 @@ def test_export_unexported_events_sends_every_accepted_event_once(
     export_result: ExportResult = export_unexported_events(
         event_store_with_accepted_events, recording_hec_event_sender, index=None)
 
-    assert export_result == ExportResult(exported_event_count=2, failed_event_count=0)
+    assert export_result == ExportResult(exported_event_count=2, dropped_event_count=0, failed_event_count=0)
     assert recording_hec_event_sender.sent_events() == accepted_events
     assert event_store_with_accepted_events.pop_unexported_events() == []
 
@@ -114,7 +162,7 @@ def test_export_unexported_events_keeps_events_and_logs_an_error_when_splunk_fai
     with caplog.at_level(logging.ERROR, logger="agent_watch"):
         export_result: ExportResult = export_unexported_events(event_store_with_accepted_events, failing_sender, None)
 
-    assert export_result == ExportResult(exported_event_count=0, failed_event_count=2)
+    assert export_result == ExportResult(exported_event_count=0, dropped_event_count=0, failed_event_count=2)
     assert "Splunk export failed: Could not reach Splunk HEC" in caplog.text
     assert event_store_with_accepted_events.pop_unexported_events() == accepted_events
 
@@ -123,5 +171,5 @@ def test_export_unexported_events_sends_nothing_when_no_events_are_waiting(
         event_store: InMemoryEventStore, recording_hec_event_sender: RecordingHecEventSender) -> None:
     export_result: ExportResult = export_unexported_events(event_store, recording_hec_event_sender, index=None)
 
-    assert export_result == ExportResult(exported_event_count=0, failed_event_count=0)
+    assert export_result == ExportResult(exported_event_count=0, dropped_event_count=0, failed_event_count=0)
     assert recording_hec_event_sender.sent_batches == []
