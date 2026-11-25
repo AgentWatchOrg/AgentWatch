@@ -9,7 +9,7 @@ from doubles.splunk_export_test_doubles import (
     parse_concatenated_hec_events)
 
 from agent_watch.api.splunk_export.models import SplunkExportError
-from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient
+from agent_watch.api.splunk_export.splunk_hec_client import SplunkHecClient, is_permanent_rejection
 
 
 @pytest.fixture
@@ -40,15 +40,31 @@ def test_send_hec_events_reports_a_retryable_rejection_without_revealing_the_tok
     assert raised_error.value.is_retryable is True
 
 
-@pytest.mark.parametrize("permanent_status", [400, 413])
-def test_send_hec_events_marks_bad_data_and_oversized_rejections_as_permanent(
-        permanent_status: int, hec_client: SplunkHecClient, scripted_hec_urlopen: ScriptedHecUrlopen) -> None:
-    scripted_hec_urlopen.failure = build_hec_http_error(permanent_status, '{"text":"Rejected","code":6}')
+@pytest.mark.parametrize(("status_code", "response_body", "is_expected_retryable"), [
+    (400, '{"text":"Invalid data format","code":6}', False),
+    (400, '{"text":"Event field is required","code":12}', False),
+    (413, "Content too large", False),
+    (400, '{"text":"Incorrect index","code":7}', True),
+    (400, '{"text":"Data channel is missing","code":10}', True),
+    (400, "not json", True),
+    (503, '{"text":"Server is busy","code":9}', True),
+], ids=["bad-data", "missing-event", "too-large", "wrong-index", "missing-channel", "unreadable-400", "busy"])
+def test_send_hec_events_drops_only_rejections_caused_by_the_payload(
+        status_code: int, response_body: str, is_expected_retryable: bool, hec_client: SplunkHecClient,
+        scripted_hec_urlopen: ScriptedHecUrlopen) -> None:
+    scripted_hec_urlopen.failure = build_hec_http_error(status_code, response_body)
 
     with pytest.raises(SplunkExportError) as raised_error:
         hec_client.send_hec_events([{"event": {"event_id": "a"}}])
 
-    assert raised_error.value.is_retryable is False
+    assert raised_error.value.is_retryable is is_expected_retryable
+
+
+@pytest.mark.parametrize(("status_code", "response_body", "is_expected_permanent"), [
+    (413, "", True), (400, '{"code":5}', True), (400, '{"code":7}', False), (400, "[5]", False), (401, "", False),
+], ids=["too-large", "no-data", "wrong-index", "not-an-object", "unauthorized"])
+def test_is_permanent_rejection(status_code: int, response_body: str, is_expected_permanent: bool) -> None:
+    assert is_permanent_rejection(status_code, response_body) is is_expected_permanent
 
 
 @pytest.mark.parametrize("connection_failure", [

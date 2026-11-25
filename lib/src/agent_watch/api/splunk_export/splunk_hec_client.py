@@ -6,11 +6,13 @@ import urllib.error
 import urllib.request
 
 from agent_watch.api.github_client import JsonObject
-from agent_watch.api.splunk_export.models import (
-    HEC_EVENT_PATH, PERMANENT_REJECTION_STATUS_CODES, SplunkExportError, SplunkHecSettings)
+from agent_watch.api.splunk_export.models import HEC_EVENT_PATH, SplunkExportError, SplunkHecSettings
 
 DEFAULT_REQUEST_TIMEOUT_SECONDS: float = 10.0
 MAXIMUM_ERROR_BODY_LENGTH: int = 500
+BAD_REQUEST_STATUS_CODE: int = 400
+CONTENT_TOO_LARGE_STATUS_CODE: int = 413
+PERMANENT_REJECTION_HEC_CODES: frozenset[int] = frozenset({5, 6, 12, 13, 15})
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -37,10 +39,23 @@ class SplunkHecClient:
                                         context=self._tls_context) as http_response:
                 http_response.read()
         except urllib.error.HTTPError as http_error:
-            error_body: str = http_error.read().decode("utf-8", errors="replace")[:MAXIMUM_ERROR_BODY_LENGTH]
+            error_body: str = http_error.read().decode("utf-8", errors="replace")
             raise SplunkExportError(
-                f"Splunk HEC at {self.events_url} returned HTTP {http_error.code}: {error_body}",
-                is_retryable=http_error.code not in PERMANENT_REJECTION_STATUS_CODES) from http_error
+                f"Splunk HEC at {self.events_url} returned HTTP {http_error.code}: "
+                f"{error_body[:MAXIMUM_ERROR_BODY_LENGTH]}",
+                is_retryable=not is_permanent_rejection(http_error.code, error_body)) from http_error
         except (urllib.error.URLError, http.client.HTTPException, OSError) as connection_error:
             raise SplunkExportError(
                 f"Could not reach Splunk HEC at {self.events_url}: {connection_error}") from connection_error
+
+
+def is_permanent_rejection(status_code: int, response_body: str) -> bool:
+    if status_code == CONTENT_TOO_LARGE_STATUS_CODE:
+        return True
+    if status_code != BAD_REQUEST_STATUS_CODE:
+        return False
+    try:
+        parsed_body: object = json.loads(response_body)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(parsed_body, dict) and parsed_body.get("code") in PERMANENT_REJECTION_HEC_CODES

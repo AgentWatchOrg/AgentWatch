@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 HEC_EVENT_PATH: str = "/services/collector/event"
-PERMANENT_REJECTION_STATUS_CODES: frozenset[int] = frozenset({400, 413})
 
 
 class SplunkExportError(Exception):
