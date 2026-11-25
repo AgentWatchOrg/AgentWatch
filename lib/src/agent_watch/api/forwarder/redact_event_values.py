@@ -16,7 +16,7 @@ COOKIE_VALUE_PATTERN: str = r"[^\s\"';]+(?:;\s*[^\s\"';]+)*"
 
 REDACTION_RULES: list[RedactionRule] = [
     RedactionRule("authorization-header", re.compile(
-        r"(?i)(authorization:\s*(?:(?:bearer|basic|token)\s+)?)[^\s\"']+"), rf"\g<1>{REDACTED_VALUE}"),
+        r"(?i)(authorization:\s*(?:[a-z][a-z-]{0,31}\s+(?=[^\s\"']))?)[^\s\"']+"), rf"\g<1>{REDACTED_VALUE}"),
     RedactionRule("cookie-header", re.compile(
         rf"(?i)({NOT_INSIDE_A_WORD_PATTERN}(?:set-)?cookie:\s*){COOKIE_VALUE_PATTERN}"), rf"\g<1>{REDACTED_VALUE}"),
     RedactionRule("secret-json-field", re.compile(
