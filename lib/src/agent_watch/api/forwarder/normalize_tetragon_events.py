@@ -10,6 +10,7 @@ NETWORK_CONNECT_FUNCTION_NAMES: frozenset[str] = frozenset({"tcp_connect"})
 LINUX_MAY_WRITE_MASK: int = 0x2
 LINUX_MAY_READ_MASK: int = 0x4
 PERMISSION_BIT_VALUES: list[int] = [0o400, 0o200, 0o100, 0o040, 0o020, 0o010, 0o004, 0o002, 0o001]
+SPECIAL_PERMISSION_BITS: list[tuple[int, str, int]] = [(3, "sS", 0o4000), (6, "sS", 0o2000), (9, "tT", 0o1000)]
 ADDRESS_FAMILY_NAMES: dict[str, str] = {"AF_INET": "ipv4", "AF_INET6": "ipv6"}
 TRANSPORT_PROTOCOL_NAMES: dict[str, str] = {"IPPROTO_TCP": "tcp", "IPPROTO_UDP": "udp"}
 PERMISSION_DENIED_RETURN_VALUES: frozenset[int] = frozenset({-1, -13})
@@ -157,23 +158,28 @@ def first_object_argument(kprobe: JsonObject, argument_kind: str) -> JsonObject:
     return argument_value if isinstance(argument_value, dict) else {}
 
 
-def file_operation_name(function_name: str, access_mask: object) -> str:
-    if function_name == "security_file_open" or not isinstance(access_mask, int):
+def file_operation_name(function_name: str, access_mask: object) -> str | None:
+    if function_name == "security_file_open":
         return "open"
+    if not isinstance(access_mask, int):
+        return None
     is_read: bool = bool(access_mask & LINUX_MAY_READ_MASK)
     is_write: bool = bool(access_mask & LINUX_MAY_WRITE_MASK)
     if is_read and is_write:
         return "read_write"
     if is_write:
         return "write"
-    return "read" if is_read else "open"
+    return "read" if is_read else None
 
 
 def permission_bits_from_mode_text(mode_text: str | None) -> int | None:
     if not mode_text or len(mode_text) != 10:
         return None
-    return sum(bit_value for bit_value, mode_character in zip(PERMISSION_BIT_VALUES, mode_text[1:])
-               if mode_character not in "-ST")
+    access_bits: int = sum(bit_value for bit_value, mode_character in zip(PERMISSION_BIT_VALUES, mode_text[1:])
+                           if mode_character not in "-ST")
+    special_bits: int = sum(bit_value for position, mode_characters, bit_value in SPECIAL_PERMISSION_BITS
+                            if mode_text[position] in mode_characters)
+    return access_bits + special_bits
 
 
 def kprobe_outcome(kprobe: JsonObject) -> str:
