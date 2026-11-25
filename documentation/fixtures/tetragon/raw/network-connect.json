@@ -1,35 +1,9 @@
 {
   "process_kprobe": {
-    "process": {
-      "exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw",
-      "pid": 2450,
-      "uid": 1000,
-      "cwd": "/home/agent",
-      "binary": "/usr/bin/curl",
-      "arguments": "http://127.0.0.1:8080/resource",
-      "parent_exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw",
-      "tid": 2450
-    },
-    "parent": {
-      "exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw",
-      "pid": 2400,
-      "binary": "/bin/bash"
-    },
+    "process": {"exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzQ1Njc4OToyNDUw", "pid": 2450, "uid": 1000, "cwd": "/home/agent", "binary": "/usr/bin/curl", "arguments": "http://127.0.0.1:8080/resource", "parent_exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw", "tid": 2450},
+    "parent": {"exec_id": "YWdlbnR3YXRjaC10ZXN0LTAxOjEyMzAwMDAwMDoyNDAw", "pid": 2400, "binary": "/bin/bash"},
     "function_name": "tcp_connect",
-    "args": [
-      {
-        "sock_arg": {
-          "family": "AF_INET",
-          "type": "SOCK_STREAM",
-          "protocol": "IPPROTO_TCP",
-          "saddr": "127.0.0.1",
-          "daddr": "127.0.0.1",
-          "sport": 51234,
-          "dport": 8080,
-          "state": "TCP_SYN_SENT"
-        }
-      }
-    ],
+    "args": [{"sock_arg": {"family": "AF_INET", "type": "SOCK_STREAM", "protocol": "IPPROTO_TCP", "saddr": "127.0.0.1", "daddr": "127.0.0.1", "sport": 51234, "dport": 8080, "state": "TCP_SYN_SENT"}}],
     "action": "KPROBE_ACTION_POST",
     "policy_name": "agentwatch-network-connect"
   },
