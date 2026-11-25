@@ -63,6 +63,20 @@ class RecordingHecEventSender:
         return [hec_event["event"] for sent_batch in self.sent_batches for hec_event in sent_batch]
 
 
+class EventRejectingHecEventSender:
+    def __init__(self, rejected_event_id: str) -> None:
+        self.sent_batch_sizes: list[int] = []
+        self.accepted_event_ids: list[str] = []
+        self._rejected_event_id: str = rejected_event_id
+
+    def send_hec_events(self, hec_events: list[JsonObject]) -> None:
+        self.sent_batch_sizes.append(len(hec_events))
+        event_ids: list[str] = [hec_event["event"]["event_id"] for hec_event in hec_events]
+        if self._rejected_event_id in event_ids:
+            raise SplunkExportError("returned HTTP 400: Invalid data format", is_retryable=False)
+        self.accepted_event_ids += event_ids
+
+
 def build_hec_http_error(status_code: int, response_body: str) -> urllib.error.HTTPError:
     return urllib.error.HTTPError(FAKE_HEC_EVENT_URL, status_code, "HEC error", Message(),
                                   io.BytesIO(response_body.encode("utf-8")))
