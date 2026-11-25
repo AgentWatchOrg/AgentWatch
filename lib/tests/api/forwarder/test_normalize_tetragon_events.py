@@ -22,6 +22,18 @@ def test_parse_tetragon_json_lines_keeps_objects_and_counts_malformed_lines() ->
     assert malformed_line_count == 2
 
 
+@pytest.mark.parametrize("line_separator_inside_a_value", ["\u0085", " ", " "],
+                         ids=["next-line", "line-separator", "paragraph-separator"])
+def test_parse_tetragon_json_lines_keeps_a_record_whose_value_holds_a_unicode_line_break(
+        line_separator_inside_a_value: str) -> None:
+    tetragon_json_line: str = '{"arguments": "a' + line_separator_inside_a_value + 'b"}\r\n'
+
+    tetragon_records, malformed_line_count = parse_tetragon_json_lines(tetragon_json_line)
+
+    assert tetragon_records == [{"arguments": f"a{line_separator_inside_a_value}b"}]
+    assert malformed_line_count == 0
+
+
 @pytest.mark.parametrize("fixture_name", ["process-exec", "file-access", "network-connect"])
 def test_normalize_tetragon_record_produces_a_schema_valid_event_for_each_supported_type(
         fixture_name: str, load_tetragon_record: TetragonRecordLoader,
