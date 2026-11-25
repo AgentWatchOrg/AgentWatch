@@ -43,6 +43,17 @@ def test_send_hec_events_reports_an_unreachable_endpoint(
     assert TEST_HEC_TOKEN not in str(raised_error.value)
 
 
+def test_send_hec_events_reports_a_connection_dropped_before_the_response(
+        fake_splunk_hec_server: FakeSplunkHecServer, make_hec_settings: SplunkHecSettingsFactory) -> None:
+    fake_splunk_hec_server.should_drop_connection = True
+    hec_client: SplunkHecClient = SplunkHecClient(make_hec_settings(fake_splunk_hec_server.url))
+
+    with pytest.raises(SplunkExportError, match="Could not reach Splunk HEC") as raised_error:
+        hec_client.send_hec_events([{"event": {"event_id": "a"}}])
+
+    assert TEST_HEC_TOKEN not in str(raised_error.value)
+
+
 def test_splunk_hec_client_builds_the_event_url_from_a_base_url_with_a_trailing_slash(
         make_hec_settings: SplunkHecSettingsFactory) -> None:
     hec_client: SplunkHecClient = SplunkHecClient(make_hec_settings("https://localhost:8088/"))

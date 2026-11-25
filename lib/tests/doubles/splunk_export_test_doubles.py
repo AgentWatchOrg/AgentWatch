@@ -27,18 +27,22 @@ class FakeSplunkHecServer:
     received_requests: list[ReceivedHecRequest] = field(default_factory=list)
     response_status: int = 200
     response_body: str = '{"text":"Success","code":0}'
+    should_drop_connection: bool = False
 
 
 class RecordingHecEventSender:
-    def __init__(self, failing_request_numbers: frozenset[int] = frozenset()) -> None:
+    def __init__(self, failing_request_numbers: frozenset[int] = frozenset(),
+                 failure: Exception = SplunkExportError(
+                     "Could not reach Splunk HEC at https://splunk.invalid/services/collector/event")) -> None:
         self.sent_batches: list[list[JsonObject]] = []
         self._failing_request_numbers: frozenset[int] = failing_request_numbers
+        self._failure: Exception = failure
         self._request_count: int = 0
 
     def send_hec_events(self, hec_events: list[JsonObject]) -> None:
         self._request_count += 1
         if self._request_count in self._failing_request_numbers:
-            raise SplunkExportError("Could not reach Splunk HEC at https://splunk.invalid/services/collector/event")
+            raise self._failure
         self.sent_batches.append(hec_events)
 
     def sent_events(self) -> list[JsonObject]:
@@ -54,6 +58,9 @@ def start_fake_splunk_hec_server() -> tuple[FakeSplunkHecServer, HTTPServer]:
             fake_server_state.received_requests.append(
                 ReceivedHecRequest(path=self.path, authorization=self.headers.get("Authorization", ""),
                                    body=request_body))
+            if fake_server_state.should_drop_connection:
+                self.close_connection = True
+                return
             self.send_response(fake_server_state.response_status)
             self.send_header("Content-Type", "application/json")
             self.end_headers()

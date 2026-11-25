@@ -40,16 +40,12 @@ def plan_hec_event_batches(events: list[JsonObject], index: str | None) -> list[
             for start in range(0, len(hec_events), MAXIMUM_EVENTS_PER_HEC_REQUEST)]
 
 
-def apply_hec_event_batches(hec_event_batches: list[list[JsonObject]], hec_event_sender: HecEventSender) -> int:
-    sent_event_count: int = 0
-    for hec_event_batch in hec_event_batches:
-        try:
-            hec_event_sender.send_hec_events(hec_event_batch)
-        except SplunkExportError as export_error:
-            logger.error("Splunk export failed: %s", export_error)
-            return sent_event_count
-        sent_event_count += len(hec_event_batch)
-    return sent_event_count
+def requeue_unsent_events(event_store: EventStore, unexported_events: list[JsonObject], sent_event_count: int) -> int:
+    unsent_events: list[JsonObject] = unexported_events[sent_event_count:]
+    if unsent_events:
+        event_store.requeue_unexported_events(unsent_events)
+        logger.error("%d event(s) were not exported to Splunk and are kept for the next export", len(unsent_events))
+    return len(unsent_events)
 
 
 def export_unexported_events(
@@ -57,11 +53,15 @@ def export_unexported_events(
     unexported_events: list[JsonObject] = event_store.pop_unexported_events()
     if not unexported_events:
         return ExportResult(exported_event_count=0, failed_event_count=0)
-    sent_event_count: int = apply_hec_event_batches(plan_hec_event_batches(unexported_events, index), hec_event_sender)
-    unsent_events: list[JsonObject] = unexported_events[sent_event_count:]
-    if unsent_events:
-        event_store.requeue_unexported_events(unsent_events)
-        logger.error("%d event(s) were not exported to Splunk and are kept for the next export", len(unsent_events))
-    else:
+    sent_event_count: int = 0
+    try:
+        for hec_event_batch in plan_hec_event_batches(unexported_events, index):
+            hec_event_sender.send_hec_events(hec_event_batch)
+            sent_event_count += len(hec_event_batch)
+    except SplunkExportError as export_error:
+        logger.error("Splunk export failed: %s", export_error)
+    finally:
+        unsent_event_count: int = requeue_unsent_events(event_store, unexported_events, sent_event_count)
+    if not unsent_event_count:
         logger.info("Exported %d event(s) to Splunk", sent_event_count)
-    return ExportResult(exported_event_count=sent_event_count, failed_event_count=len(unsent_events))
+    return ExportResult(exported_event_count=sent_event_count, failed_event_count=unsent_event_count)
