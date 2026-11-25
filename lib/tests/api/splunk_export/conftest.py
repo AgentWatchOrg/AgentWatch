@@ -3,7 +3,8 @@ from typing import Iterator
 
 import pytest
 from doubles.splunk_export_test_doubles import (
-    TEST_HEC_TOKEN, FakeSplunkHecServer, SplunkHecSettingsFactory, start_fake_splunk_hec_server)
+    TEST_HEC_TOKEN, FakeSplunkHecServer, RecordingHecEventSender, SplunkHecSettingsFactory,
+    start_fake_splunk_hec_server)
 
 from agent_watch.api.splunk_export.models import SplunkHecSettings
 
@@ -30,3 +31,7 @@ def unused_local_url() -> str:
         unused_port: int = unused_socket.getsockname()[1]
     return f"http://127.0.0.1:{unused_port}"
 
+
+@pytest.fixture
+def recording_hec_event_sender() -> RecordingHecEventSender:
+    return RecordingHecEventSender()

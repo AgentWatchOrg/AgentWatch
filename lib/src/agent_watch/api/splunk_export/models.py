@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+TELEMETRY_SOURCETYPE: str = "agentwatch:telemetry"
+TELEMETRY_SOURCE: str = "agentwatch:ingestion"
 HEC_EVENT_PATH: str = "/services/collector/event"
 PERMANENT_REJECTION_STATUS_CODES: frozenset[int] = frozenset({400, 413})
 
@@ -17,3 +19,15 @@ class SplunkHecSettings:
     index: str | None
     should_verify_tls: bool
 
+
+@dataclass
+class HecExportProgress:
+    sent_event_count: int = 0
+    dropped_event_count: int = 0
+
+
+@dataclass(frozen=True)
+class ExportResult:
+    exported_event_count: int
+    dropped_event_count: int
+    failed_event_count: int

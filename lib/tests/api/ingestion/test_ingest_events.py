@@ -44,6 +44,9 @@ class RendezvousingEventStore:
     def pop_unexported_events(self) -> list[JsonObject]:
         return self.inner_event_store.pop_unexported_events()
 
+    def requeue_unexported_events(self, events: list[JsonObject]) -> None:
+        self.inner_event_store.requeue_unexported_events(events)
+
 
 def test_extract_event_id_returns_the_event_id_of_a_well_formed_event(valid_process_exec_event: JsonObject) -> None:
     assert extract_event_id(valid_process_exec_event) == valid_process_exec_event["event_id"]
