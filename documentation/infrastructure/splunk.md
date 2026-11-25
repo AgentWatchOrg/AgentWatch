@@ -39,7 +39,7 @@ A successful request returns `{"text":"Success","code":0}`. In Splunk Web, searc
 
 ## Export AgentWatch telemetry
 
-After `POST /v1/events` accepts events, the [web server](web-server.md) sends them to HEC in a background task. Rejected events and duplicates are never exported. Each HEC event carries the whole v1 event, with `sourcetype` `agentwatch:telemetry`, `source` `agentwatch:ingestion`, `host` from the event, and `time` from its `timestamp`.
+After `POST /v1/events` accepts events, the [web server](web-server.md) sends them to HEC in a background task. Rejected events and duplicates are never exported. Each HEC event carries the whole v1 event, with `sourcetype` `agentwatch:telemetry`, `source` `agentwatch:ingestion`, `host` from the event, and `time` from its `timestamp`. Each HEC request carries at most 100 events and 512 KB.
 
 | Variable | Purpose |
 |---|---|
