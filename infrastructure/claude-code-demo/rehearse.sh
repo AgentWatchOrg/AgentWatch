@@ -12,15 +12,43 @@ if ((EUID == 0)); then
 fi
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-claude_bin="${CLAUDE_BIN:-$HOME/.local/bin/claude}"
-ollama_bin="${OLLAMA_BIN:-$HOME/.local/opt/ollama-0.40.18/bin/ollama}"
+pinned_ollama_dir="$HOME/.local/opt/ollama-0.40.18"
+
+resolve_executable() {
+  local override=$1
+  shift
+  if [[ -n $override ]]; then
+    printf '%s\n' "$override"
+    return
+  fi
+  local candidate
+  for candidate in "$@"; do
+    if [[ -x $candidate ]]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  done
+  local path_name=$1
+  path_name=$(basename "$path_name")
+  if command -v "$path_name" >/dev/null 2>&1; then
+    command -v "$path_name"
+    return
+  fi
+  printf '%s\n' "$1"
+}
+
+claude_bin=$(resolve_executable "${CLAUDE_BIN:-}" "$HOME/.local/bin/claude")
+ollama_bin=$(resolve_executable "${OLLAMA_BIN:-}" \
+  "$pinned_ollama_dir/bin/ollama" \
+  "$pinned_ollama_dir/ollama")
 ollama_host=127.0.0.1:11434
 model=qwen3.5:4b
 sample_url=http://127.0.0.1:8765/sample.txt
 fixture=AgentWatch-synthetic-fixture
+demo_path="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 for binary in "$claude_bin" "$ollama_bin"; do
-  if ! command -v "$binary" >/dev/null; then
+  if [[ ! -x $binary ]]; then
     printf 'Missing executable: %s. See documentation/infrastructure/claude-code-demo.md.\n' "$binary" >&2
     exit 1
   fi
@@ -82,7 +110,7 @@ run_task() {
   printf 'The local model may take a minute or two.\n'
   (
     cd "$sample_dir"
-    env -i HOME="$HOME" PATH=/usr/local/bin:/usr/bin:/bin \
+    env -i HOME="$HOME" PATH="$demo_path" \
       CLAUDE_CONFIG_DIR="$config" CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
       DISABLE_AUTOUPDATER=1 CLAUDE_CODE_MAX_OUTPUT_TOKENS=1024 \
       ANTHROPIC_BASE_URL="http://$ollama_host" ANTHROPIC_AUTH_TOKEN=ollama \
@@ -118,6 +146,10 @@ PY
 
 start_event_viewer() {
   if [[ -z "${TETRA_ADDRESS:-}" ]]; then return 0; fi
+  if [[ $(uname -s) != Linux ]]; then
+    printf 'Tetragon event viewing is Linux-only. Unset TETRA_ADDRESS on macOS.\n' >&2
+    exit 1
+  fi
   local tetra_bin="${TETRA_BIN:-tetra}"
   if ! "$tetra_bin" --server-address "$TETRA_ADDRESS" tracingpolicy list \
     </dev/null >/dev/null; then

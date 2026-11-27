@@ -1,10 +1,10 @@
-# Local Claude Code demo on Ubuntu
+# Local Claude Code demo
 
-AgentWatch uses Claude Code to generate activity for [Sprint 1](https://github.com/AgentWatchOrg/AgentWatch/issues/56). [Ollama runs the Qwen model locally](https://docs.ollama.com/integrations/claude-code), so this setup uses the local model server for inference. Tetragon observes activity on the same Linux host. Sensor installation and policy configuration are tracked in [#57](https://github.com/AgentWatchOrg/AgentWatch/issues/57).
+AgentWatch uses Claude Code to generate activity for [Sprint 1](https://github.com/AgentWatchOrg/AgentWatch/issues/56). [Ollama runs the Qwen model locally](https://docs.ollama.com/integrations/claude-code), so this setup uses the local model server for inference. On Linux, Tetragon can observe that activity on the same host. Sensor installation and policy configuration are tracked in [#57](https://github.com/AgentWatchOrg/AgentWatch/issues/57).
 
-The reference run used Ubuntu 24.04 on x86-64 WSL 2, kernel `5.15.167.4-microsoft-standard-WSL2`, Claude Code `2.1.331`, Ollama `0.40.18`, and `qwen3.5:4b`. Initial downloads total about 5 GB. A local prompt can take a minute or two.
+The reference run used Ubuntu 24.04 on x86-64 WSL 2, kernel `5.15.167.4-microsoft-standard-WSL2`, Claude Code `2.1.331`, Ollama `0.40.18`, and `qwen3.5:4b`. Initial downloads total about 5 GB. A local prompt can take a minute or two. macOS can run the same Claude Code and Ollama smoke test and demo; Tetragon event viewing stays Linux-only.
 
-## One-time setup
+## One-time setup on Ubuntu (WSL 2)
 
 On Windows, open PowerShell and check that Ubuntu 24.04 is listed with WSL version 2. Install the distribution if it is missing.
 
@@ -45,15 +45,45 @@ cd "$HOME/AgentWatch"
 ./infrastructure/claude-code-demo/rehearse.sh prepare
 ```
 
+## One-time setup on macOS
+
+Install Claude Code, Ollama, and the repo tools as your normal user. Homebrew's `ollama` formula matches the pinned `0.40.18` release used on Ubuntu.
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash -s 2.1.331
+brew install ollama git python3
+```
+
+Or unpack the [pinned Darwin archive](https://github.com/ollama/ollama/releases/tag/v0.40.18) instead of Homebrew (binary at `$HOME/.local/opt/ollama-0.40.18/ollama`, next to its libraries):
+
+```bash
+archive=$(mktemp /tmp/ollama.XXXXXX.tgz)
+ollama_dir="$HOME/.local/opt/ollama-0.40.18"
+curl -fL https://github.com/ollama/ollama/releases/download/v0.40.18/ollama-darwin.tgz -o "$archive" &&
+  printf '%s  %s\n' \
+    015261f434d31d7f0781f8ba6b59cc8e1f70ecb562a4e6db44dfdd5e02f7e562 "$archive" | shasum -a 256 -c - &&
+  mkdir -p "$ollama_dir" &&
+  tar -xzf "$archive" -C "$ollama_dir" &&
+  rm -- "$archive"
+```
+
+Clone AgentWatch and pull the model. The launcher finds `claude` and `ollama` on `PATH`, Homebrew's `ollama`, the Linux `$HOME/.local/opt/ollama-0.40.18/bin/ollama` layout, or the Darwin `$HOME/.local/opt/ollama-0.40.18/ollama` layout.
+
+```bash
+git clone https://github.com/AgentWatchOrg/AgentWatch.git "$HOME/AgentWatch"
+cd "$HOME/AgentWatch"
+./infrastructure/claude-code-demo/rehearse.sh prepare
+```
+
 ## Smoke test
 
-From the repository checkout as `agentwatch`, record the versions and run the smoke test.
+From the repository checkout, record the versions and run the smoke test. On Ubuntu, run this as `agentwatch`.
 
 ```bash
 id -un
-uname -r
+uname -srm
 "$HOME/.local/bin/claude" --version
-"$HOME/.local/opt/ollama-0.40.18/bin/ollama" --version
+command -v ollama >/dev/null && ollama --version || "$HOME/.local/opt/ollama-0.40.18/bin/ollama" --version
 ./infrastructure/claude-code-demo/rehearse.sh smoke
 ```
 
@@ -67,6 +97,8 @@ Run the launcher without arguments and choose `1` to count lines or `2` to fetch
 ./infrastructure/claude-code-demo/rehearse.sh
 ```
 
+Tetragon runs only on Linux. On macOS, skip the sensor steps below; the Claude Code and Ollama examples still work.
+
 For Tetragon, have the sensor operator check that `/sys/kernel/btf/vmlinux` is readable and that the file-open and TCP-connect policies are enabled. With the standard `#57` service configuration, run `sudo tetra tracingpolicy list` from an Ubuntu administrator shell. Process execution is provided by Tetragon's base sensor.
 
 If the demo user has access to the sensor's event socket, set `TETRA_ADDRESS` to its configured address for a combined view. For example, a loopback listener on the default port can be viewed with the following command.
@@ -77,4 +109,4 @@ TETRA_ADDRESS=127.0.0.1:54321 ./infrastructure/claude-code-demo/rehearse.sh
 
 The viewer shows the command, sample file open, and connection to port `8765`. For a Unix socket, use its `unix:///…` address. Set `TETRA_BIN` if the `tetra` binary is outside `PATH`. The sensor operator can also stream events independently with `sudo tetra getevents -o json`.
 
-For [#56](https://github.com/AgentWatchOrg/AgentWatch/issues/56), the second tester should post their Ubuntu and kernel versions, Claude Code and Ollama versions, sensor preflight, smoke-test result, and any setup corrections on the issue.
+For [#56](https://github.com/AgentWatchOrg/AgentWatch/issues/56), the second tester should post their OS and kernel versions, Claude Code and Ollama versions, sensor preflight (Linux only), smoke-test result, and any setup corrections on the issue.
