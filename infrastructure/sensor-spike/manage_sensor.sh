@@ -45,14 +45,14 @@ sensor_is_available() {
 }
 
 enable_tetragon() {
-  systemctl start tetragon
+  systemctl enable --now tetragon
   sleep 5
-  echo "tetragon: enabled (policies from /etc/tetragon/tetragon.tp.d)"
+  echo "tetragon: enabled and set to start at boot (policies from /etc/tetragon/tetragon.tp.d)"
 }
 
 disable_tetragon() {
-  systemctl stop tetragon 2> /dev/null || true
-  echo "tetragon: disabled"
+  systemctl disable --now tetragon 2> /dev/null || true
+  echo "tetragon: stopped and disabled at boot"
 }
 
 verify_tetragon() {
@@ -179,7 +179,10 @@ case "$ACTION" in
     require_root "$@"
     run_for_sensors "$ACTION" "$SENSOR"
     ;;
-  status) show_status ;;
+  status)
+    require_root "$@"
+    show_status
+    ;;
   recommend) recommend_sensor ;;
   *) print_usage ;;
 esac

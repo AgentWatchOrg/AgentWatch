@@ -63,7 +63,7 @@ search_audit_records() {
 report_capture() {
   local activity="$1" pattern="$2" events_file="$3" first_number="$4" last_number="$5" expected_count="$6"
   local seen_numbers missing_numbers
-  seen_numbers="$(grep -oE "$pattern" "$events_file" | grep -oE '[0-9]+$' | sort -un || true)"
+  seen_numbers="$(grep -oE "$pattern" "$events_file" | grep -oE '[0-9]+$' | awk -v first="$first_number" -v last="$last_number" '$1 >= first && $1 <= last' | sort -un || true)"
   missing_numbers="$(comm -23 <(seq "$first_number" "$last_number" | sort) <(printf '%s\n' "$seen_numbers" | sort) | sort -n | tr '\n' ' ')"
   log_summary "  $activity captured: $(printf '%s\n' "$seen_numbers" | grep -c . || true) / $expected_count"
   log_summary "  $activity missing: ${missing_numbers:-none}"
@@ -125,10 +125,11 @@ run_tetragon_phase() {
   kill "$stream_pid" || true
   report_capture exec 'spike-exec-[0-9]+' "$TETRAGON_EVENTS_FILE" 1 "$EXEC_COUNT" "$EXEC_COUNT"
   report_capture file 'spike-file-[0-9]+' "$TETRAGON_EVENTS_FILE" 1 "$FILE_COUNT" "$FILE_COUNT"
-  report_capture network '"dport": ?41[0-9]{3}' "$TETRAGON_EVENTS_FILE" "$((NETWORK_PORT_BASE + 1))" "$((NETWORK_PORT_BASE + NETWORK_COUNT))" "$NETWORK_COUNT"
+  report_capture network '"dport": ?[0-9]+' "$TETRAGON_EVENTS_FILE" "$((NETWORK_PORT_BASE + 1))" "$((NETWORK_PORT_BASE + NETWORK_COUNT))" "$NETWORK_COUNT"
+  log_summary "  note: the Tetragon policies are host-wide ($(wc -l < "$TETRAGON_EVENTS_FILE" | tr -d ' ') events seen during the capture run) while the auditd rules cover only $AGENT_USER, so capture and overhead are not like-for-like."
   grep -m3 'spike-exec' "$TETRAGON_EVENTS_FILE" > "$SAMPLES_DIRECTORY/tetragon-exec.json" || true
   grep -m3 'spike-file' "$TETRAGON_EVENTS_FILE" > "$SAMPLES_DIRECTORY/tetragon-file.json" || true
-  grep -m3 -E '"dport": ?41[0-9]{3}' "$TETRAGON_EVENTS_FILE" > "$SAMPLES_DIRECTORY/tetragon-network.json" || true
+  grep -m3 -E "\"dport\": ?($((NETWORK_PORT_BASE + 1))|$((NETWORK_PORT_BASE + 2))|$((NETWORK_PORT_BASE + 3)))" "$TETRAGON_EVENTS_FILE" > "$SAMPLES_DIRECTORY/tetragon-network.json" || true
   run_timed_stress tetragon
 }
 
@@ -149,7 +150,7 @@ run_auditd_phase() {
   search_audit_records agent_net > "$RESULTS_DIRECTORY/auditd-network.txt"
   report_capture exec 'spike-exec-[0-9]+' "$RESULTS_DIRECTORY/auditd-exec.txt" 1 "$EXEC_COUNT" "$EXEC_COUNT"
   report_capture file 'spike-file-[0-9]+' "$RESULTS_DIRECTORY/auditd-file.txt" 1 "$FILE_COUNT" "$FILE_COUNT"
-  report_capture network 'lport=41[0-9]{3}' "$RESULTS_DIRECTORY/auditd-network.txt" "$((NETWORK_PORT_BASE + 1))" "$((NETWORK_PORT_BASE + NETWORK_COUNT))" "$NETWORK_COUNT"
+  report_capture network 'lport=[0-9]+' "$RESULTS_DIRECTORY/auditd-network.txt" "$((NETWORK_PORT_BASE + 1))" "$((NETWORK_PORT_BASE + NETWORK_COUNT))" "$NETWORK_COUNT"
   head -30 "$RESULTS_DIRECTORY/auditd-exec.txt" > "$SAMPLES_DIRECTORY/auditd-exec.txt"
   head -30 "$RESULTS_DIRECTORY/auditd-file.txt" > "$SAMPLES_DIRECTORY/auditd-file.txt"
   head -30 "$RESULTS_DIRECTORY/auditd-network.txt" > "$SAMPLES_DIRECTORY/auditd-network.txt"
@@ -157,7 +158,15 @@ run_auditd_phase() {
   "$MANAGE_SENSOR" disable auditd > /dev/null
 }
 
+validate_network_count() {
+  if [[ ! "$NETWORK_COUNT" =~ ^[0-9]+$ ]] || ((NETWORK_COUNT > 24000)); then
+    echo "NETWORK_COUNT must be a number up to 24000 (ports run from $((NETWORK_PORT_BASE + 1)) and must stay below 65536)." >&2
+    exit 1
+  fi
+}
+
 require_root
+validate_network_count
 mkdir -p "$SAMPLES_DIRECTORY"
 : > "$SUMMARY_FILE"
 prepare_workload_files

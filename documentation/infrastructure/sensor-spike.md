@@ -10,11 +10,11 @@ Run through `sudo /opt/sensor-spike/manage_sensor.sh <action> <tetragon|auditd|a
 
 | Action | Tetragon | auditd |
 |---|---|---|
-| `enable` | Starts the service, which loads `/etc/tetragon/tetragon.tp.d/*.yaml` | Loads `auditd.rules` for `agentuser`, replacing only a previous run's spike rules |
+| `enable` | Starts the service and enables it at boot; it loads `/etc/tetragon/tetragon.tp.d/*.yaml` | Loads `auditd.rules` for `agentuser`, replacing only a previous run's spike rules |
 | `verify` | Runs a known command and checks Tetragon emitted its exec event | Runs a known command and checks the `agent_exec` rule recorded it |
-| `disable` | Stops the service | Removes only the spike rules (keys `agent_exec`, `agent_file`, `agent_net`) |
+| `disable` | Stops the service and disables it at boot, so it stays off after a restart | Removes only the spike rules (keys `agent_exec`, `agent_file`, `agent_net`) |
 
-`manage_sensor.sh status` shows what is active. `manage_sensor.sh recommend` names the sensor the host supports.
+`sudo manage_sensor.sh status` shows what is active; it needs root because `auditctl -l` does. `manage_sensor.sh recommend` names the sensor the host supports.
 
 The scripts never truncate audit logs or remove rules they did not add, so they are safe on a host with its own audit configuration.
 
@@ -27,6 +27,8 @@ The auditd rules cover `execve`, `execveat`, `open`, `openat`, `openat2`, `creat
 | No BTF | `/sys/kernel/btf/vmlinux` missing |
 | Tetragon does not start | `tetragon-startup-error.txt` in the results folder |
 | Capture below target | Tetragon under 95% of known activities while auditd meets it (`summary.txt`) |
+
+The Tetragon policies are host-wide, because the forwarder filters by process lineage downstream, while the auditd rules cover only `agentuser`. Capture and overhead from `compare_sensors.sh` are therefore not like-for-like: Tetragon also sees, and can drop, unrelated host events. `summary.txt` records how many events Tetragon saw during the capture run; weigh that before acting on the capture condition.
 
 ## Scripts
 
