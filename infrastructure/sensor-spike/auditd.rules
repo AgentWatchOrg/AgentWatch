@@ -1,6 +1,12 @@
 -a always,exit -F arch=b64 -S execve -F uid=AGENT_UID -k agent_exec
+-a always,exit -F arch=b64 -S execveat -F uid=AGENT_UID -k agent_exec
 -a always,exit -F arch=b32 -S execve -F uid=AGENT_UID -k agent_exec
+-a always,exit -F arch=b32 -S execveat -F uid=AGENT_UID -k agent_exec
 -a always,exit -F arch=b64 -S openat -F uid=AGENT_UID -k agent_file
+-a always,exit -F arch=b64 -S openat2 -F uid=AGENT_UID -k agent_file
+-a always,exit -F arch=b64 -S open,creat -F uid=AGENT_UID -k agent_file
 -a always,exit -F arch=b32 -S openat -F uid=AGENT_UID -k agent_file
+-a always,exit -F arch=b32 -S openat2 -F uid=AGENT_UID -k agent_file
+-a always,exit -F arch=b32 -S open,creat -F uid=AGENT_UID -k agent_file
 -a always,exit -F arch=b64 -S connect -F uid=AGENT_UID -k agent_net
 -a always,exit -F arch=b32 -S connect -F uid=AGENT_UID -k agent_net

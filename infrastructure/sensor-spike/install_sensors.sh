@@ -73,7 +73,11 @@ check_btf_support() {
 
 resolve_tetragon_version() {
   if [[ -z "$TETRAGON_VERSION" ]]; then
-    TETRAGON_VERSION="$(curl -fsSL https://api.github.com/repos/cilium/tetragon/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)"
+    TETRAGON_VERSION="$(curl -fsSL https://api.github.com/repos/cilium/tetragon/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)" || true
+  fi
+  if [[ -z "$TETRAGON_VERSION" ]]; then
+    echo "Could not resolve the latest Tetragon release (GitHub API unreachable or rate-limited). Set TETRAGON_VERSION." >&2
+    return 1
   fi
   echo "tetragon_version: $TETRAGON_VERSION" >> "$HOST_INFO_FILE"
 }
@@ -86,11 +90,15 @@ install_tetragon() {
 
   rm -rf "$download_directory"
   mkdir -p "$download_directory"
-  curl -fsSL "$tarball_url" -o "$download_directory/tetragon.tar.gz"
-  tar -xzf "$download_directory/tetragon.tar.gz" -C "$download_directory"
+  curl -fsSL "$tarball_url" -o "$download_directory/tetragon.tar.gz" || { echo "Download failed: $tarball_url" >&2; return 1; }
+  tar -xzf "$download_directory/tetragon.tar.gz" -C "$download_directory" || return 1
 
   install_script="$(find "$download_directory" -name install.sh | head -1)"
-  (cd "$(dirname "$install_script")" && ./install.sh)
+  if [[ -z "$install_script" ]]; then
+    echo "No install.sh found in the Tetragon tarball." >&2
+    return 1
+  fi
+  (cd "$(dirname "$install_script")" && ./install.sh) || return 1
 }
 
 install_tracing_policies() {
@@ -111,7 +119,11 @@ install_tracing_policies() {
 }
 
 install_auditd() {
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq auditd
+  if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -qq auditd; then
+    echo "auditd: UNAVAILABLE (package install failed)" >> "$HOST_INFO_FILE"
+    echo "auditd package install failed; the auditd comparison will be skipped." >&2
+    return 0
+  fi
   systemctl enable --now auditd || true
   if auditctl -s > /dev/null 2>&1; then
     AUDITD_AVAILABLE="yes"
@@ -153,9 +165,13 @@ DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl jq
 check_btf_support
 if [[ "$TETRAGON_AVAILABLE" == "yes" ]]; then
-  resolve_tetragon_version
-  install_tetragon
-  install_tracing_policies
+  if { resolve_tetragon_version && install_tetragon; }; then
+    install_tracing_policies
+  else
+    TETRAGON_AVAILABLE="no"
+    echo "tetragon_install: FAILED" >> "$HOST_INFO_FILE"
+    echo "Tetragon install failed; continuing with auditd only." >&2
+  fi
 fi
 install_auditd
 create_agent_user

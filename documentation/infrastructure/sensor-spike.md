@@ -10,11 +10,15 @@ Run through `sudo /opt/sensor-spike/manage_sensor.sh <action> <tetragon|auditd|a
 
 | Action | Tetragon | auditd |
 |---|---|---|
-| `enable` | Starts the service, which loads `/etc/tetragon/tetragon.tp.d/*.yaml` | Loads `auditd.rules` for `agentuser` |
+| `enable` | Starts the service, which loads `/etc/tetragon/tetragon.tp.d/*.yaml` | Loads `auditd.rules` for `agentuser`, replacing only a previous run's spike rules |
 | `verify` | Runs a known command and checks Tetragon emitted its exec event | Runs a known command and checks the `agent_exec` rule recorded it |
-| `disable` | Stops the service | Clears all audit rules |
+| `disable` | Stops the service | Removes only the spike rules (keys `agent_exec`, `agent_file`, `agent_net`) |
 
 `manage_sensor.sh status` shows what is active. `manage_sensor.sh recommend` names the sensor the host supports.
+
+The scripts never truncate audit logs or remove rules they did not add, so they are safe on a host with its own audit configuration.
+
+The auditd rules cover `execve`, `execveat`, `open`, `openat`, `openat2`, `creat`, and `connect` on the 64-bit and 32-bit interfaces. Syscalls not listed, and mechanisms that avoid them such as `io_uring`, are not recorded. Rules for syscalls an architecture lacks fail to load and are skipped; `enable` fails only if a whole activity type ends up with no rule.
 
 ## Switch to auditd
 
@@ -31,7 +35,7 @@ Run through `sudo /opt/sensor-spike/manage_sensor.sh <action> <tetragon|auditd|a
 | `install_sensors.sh` | Installs both sensors, policies, and `agentuser`; records which sensors work. |
 | `manage_sensor.sh` | Enable, verify, disable, status, recommend. |
 | `run_workload.sh` | `capture`: known exec, file-open, and connect actions with unique markers. `stress`: loop for timing. |
-| `compare_sensors.sh` | Runs the three phases; reports captured and missing markers, stress time, sensor CPU and memory. |
+| `compare_sensors.sh` | Runs the three phases; reports captured and missing markers, stress time, sensor CPU and memory. Reads only audit records created after the run starts. |
 | `report_fields.sh` | Lists the process identity, lineage, and activity fields present in each sample. |
 | `sanitize_samples.sh` | Redacts hostnames, usernames, non-loopback IPs, and API key patterns. |
 | `archive_results.sh` | Packs the results folder. |

@@ -4,6 +4,8 @@ set -euo pipefail
 INSTALL_DIRECTORY="/opt/sensor-spike"
 RESULTS_DIRECTORY="/var/tmp/sensor-spike-results"
 AVAILABILITY_FILE="$RESULTS_DIRECTORY/availability.env"
+ACTIVE_RULES_FILE="$RESULTS_DIRECTORY/auditd-active.rules"
+SPIKE_AUDIT_KEYS=(agent_exec agent_file agent_net)
 AGENT_USER="agentuser"
 ACTION="${1:-}"
 SENSOR="${2:-all}"
@@ -71,24 +73,47 @@ verify_tetragon() {
   fi
 }
 
+remove_spike_auditd_rules() {
+  local rule_line
+  local rule_arguments=()
+  [[ -f "$ACTIVE_RULES_FILE" ]] || return 0
+  while IFS= read -r rule_line; do
+    [[ "$rule_line" == -a* ]] || continue
+    read -r -a rule_arguments <<< "$rule_line"
+    rule_arguments[0]="-d"
+    auditctl "${rule_arguments[@]}" > /dev/null 2>&1 || true
+  done < "$ACTIVE_RULES_FILE"
+}
+
+count_spike_auditd_rules() {
+  auditctl -l 2> /dev/null | grep -cE 'agent_(exec|file|net)' || true
+}
+
 enable_auditd() {
-  local active_rules_file="$RESULTS_DIRECTORY/auditd-active.rules"
+  local audit_key loaded_rules
   mkdir -p "$RESULTS_DIRECTORY"
-  sed "s/AGENT_UID/$(id -u "$AGENT_USER")/" "$INSTALL_DIRECTORY/auditd.rules" > "$active_rules_file"
-  auditctl -D > /dev/null
-  auditctl -R "$active_rules_file" > /dev/null
-  echo "auditd: enabled ($(auditctl -l | wc -l) rules for uid $(id -u "$AGENT_USER"))"
+  remove_spike_auditd_rules
+  sed "s/AGENT_UID/$(id -u "$AGENT_USER")/" "$INSTALL_DIRECTORY/auditd.rules" > "$ACTIVE_RULES_FILE"
+  auditctl -c -R "$ACTIVE_RULES_FILE" > /dev/null || echo "auditd: some rules did not load (expected for syscalls this architecture lacks)" >&2
+  loaded_rules="$(auditctl -l)"
+  for audit_key in "${SPIKE_AUDIT_KEYS[@]}"; do
+    if ! grep -q "$audit_key" <<< "$loaded_rules"; then
+      echo "auditd: no rule loaded for $audit_key" >&2
+      return 1
+    fi
+  done
+  echo "auditd: enabled ($(count_spike_auditd_rules) spike rules for uid $(id -u "$AGENT_USER"))"
 }
 
 disable_auditd() {
-  auditctl -D > /dev/null 2>&1 || true
-  echo "auditd: disabled (rules cleared)"
+  remove_spike_auditd_rules
+  echo "auditd: disabled (spike rules removed; other rules and existing logs untouched)"
 }
 
 verify_auditd() {
   local marker
   marker="auditd-verify-$RANDOM"
-  auditctl -l
+  auditctl -l | grep -E 'agent_(exec|file|net)' || true
   sudo -u "$AGENT_USER" /bin/echo "$marker" > /dev/null
   sleep 2
   if ausearch -i -k agent_exec 2> /dev/null | grep -q "$marker"; then
@@ -124,7 +149,7 @@ run_for_sensors() {
 
 show_status() {
   echo "tetragon service: $(systemctl is-active tetragon 2> /dev/null || true)"
-  echo "auditd rules loaded: $(auditctl -l 2> /dev/null | grep -vc 'No rules' || true)"
+  echo "auditd spike rules loaded: $(count_spike_auditd_rules)"
   echo "availability: tetragon=$TETRAGON_AVAILABLE auditd=$AUDITD_AVAILABLE"
 }
 

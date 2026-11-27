@@ -7,7 +7,8 @@ SAMPLES_DIRECTORY="$RESULTS_DIRECTORY/samples"
 SUMMARY_FILE="$RESULTS_DIRECTORY/summary.txt"
 AVAILABILITY_FILE="$RESULTS_DIRECTORY/availability.env"
 MANAGE_SENSOR="$INSTALL_DIRECTORY/manage_sensor.sh"
-AUDIT_LOG_FILE="/var/log/audit/audit.log"
+AUDIT_SEARCH_START_DATE=""
+AUDIT_SEARCH_START_TIME=""
 AGENT_USER="agentuser"
 FILE_DIRECTORY="/tmp/spike-files"
 NETWORK_PORT_BASE=41000
@@ -49,6 +50,10 @@ run_workload_as_agent() {
   sudo -u "$AGENT_USER" env \
     EXEC_COUNT="$EXEC_COUNT" FILE_COUNT="$FILE_COUNT" NETWORK_COUNT="$NETWORK_COUNT" STRESS_ITERATIONS="$STRESS_ITERATIONS" \
     bash "$INSTALL_DIRECTORY/run_workload.sh" "$1"
+}
+
+search_audit_records() {
+  LC_ALL=C ausearch -i -k "$1" --start "$AUDIT_SEARCH_START_DATE" "$AUDIT_SEARCH_START_TIME" 2> /dev/null || true
 }
 
 report_capture() {
@@ -130,15 +135,14 @@ run_auditd_phase() {
   fi
   log_summary "== auditd =="
   "$MANAGE_SENSOR" disable all > /dev/null
-  if [[ -f "$AUDIT_LOG_FILE" ]]; then
-    : > "$AUDIT_LOG_FILE"
-  fi
   "$MANAGE_SENSOR" enable auditd > /dev/null
+  AUDIT_SEARCH_START_DATE="$(LC_ALL=C date '+%x')"
+  AUDIT_SEARCH_START_TIME="$(LC_ALL=C date '+%X')"
   run_workload_as_agent capture
   sleep 3
-  ausearch -i -k agent_exec > "$RESULTS_DIRECTORY/auditd-exec.txt" 2> /dev/null || true
-  ausearch -i -k agent_file > "$RESULTS_DIRECTORY/auditd-file.txt" 2> /dev/null || true
-  ausearch -i -k agent_net > "$RESULTS_DIRECTORY/auditd-network.txt" 2> /dev/null || true
+  search_audit_records agent_exec > "$RESULTS_DIRECTORY/auditd-exec.txt"
+  search_audit_records agent_file > "$RESULTS_DIRECTORY/auditd-file.txt"
+  search_audit_records agent_net > "$RESULTS_DIRECTORY/auditd-network.txt"
   report_capture exec 'spike-exec-[0-9]+' "$RESULTS_DIRECTORY/auditd-exec.txt" 1 "$EXEC_COUNT" "$EXEC_COUNT"
   report_capture file 'spike-file-[0-9]+' "$RESULTS_DIRECTORY/auditd-file.txt" 1 "$FILE_COUNT" "$FILE_COUNT"
   report_capture network 'lport=41[0-9]{3}' "$RESULTS_DIRECTORY/auditd-network.txt" "$((NETWORK_PORT_BASE + 1))" "$((NETWORK_PORT_BASE + NETWORK_COUNT))" "$NETWORK_COUNT"
