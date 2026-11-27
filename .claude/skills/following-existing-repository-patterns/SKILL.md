@@ -30,6 +30,7 @@ If unsure, ask the user before adding it. If an existing pattern is bad, don't w
 | Infrastructure | CloudFormation in `infrastructure/<service>/`; deploys through SSM from GitHub Actions with an OIDC role, no SSH keys or AWS secrets in GitHub |
 | Server secrets | GitHub repository secrets only; the deploy workflow copies them into SSM Parameter Store under `/agent-watch/rest-api/`, and the deploy script writes that path into the service's environment file; never set in AWS by hand or committed |
 | Local services | Docker Compose in `infrastructure/<service>/`, with a committed `.env.example` and git-ignored `.env` |
+| Host spike scripts | Bash in `infrastructure/<spike-name>/`, run manually with `sudo` on a Linux host, never deployed by a workflow; they need the real kernel (eBPF, audit), which CloudFormation and Compose cannot provide. Documented in `documentation/infrastructure/` |
 | GitHub access | `GitHubClient` in `api/github_client.py`; area clients like `ProjectBoardClient` wrap it; never a second HTTP client |
 | Logging | Module logger from `logging.getLogger(__name__)`; setup only in `agent_watch/logging_configuration.py`; never `print` or `click.echo` |
 | Command configuration | Click options with an `envvar` named like the option; `--dry-run` supported for anything that changes state |
