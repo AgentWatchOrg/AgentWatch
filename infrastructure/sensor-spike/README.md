@@ -68,7 +68,7 @@ cd ~/AgentWatch/infrastructure/sensor-spike
 sudo ./install_sensors.sh
 ```
 
-`install_sensors.sh` records host facts, installs Tetragon (latest release; pin with `sudo TETRAGON_VERSION=v1.x.x ./install_sensors.sh`) and its policies, installs auditd, creates the unprivileged `agentuser`, and copies the scripts to `/opt/sensor-spike/`. It does not abort when one sensor is unavailable: it records availability in `/var/tmp/sensor-spike-results/availability.env` and continues with what works.
+`install_sensors.sh` records host facts, installs Tetragon (latest release; pin with `sudo TETRAGON_VERSION=v1.x.x ./install_sensors.sh`) and its policies, installs auditd, creates the unprivileged `agentuser`, and copies the scripts to `/opt/sensor-spike/`. It does not abort when one sensor is unavailable: it records availability in `/var/lib/sensor-spike/results/availability.env` and continues with what works.
 
 Then:
 
@@ -79,7 +79,7 @@ sudo /opt/sensor-spike/manage_sensor.sh verify all      # PASS means a known exe
 sudo /opt/sensor-spike/manage_sensor.sh disable all
 sudo /opt/sensor-spike/compare_sensors.sh               # the full comparison
 sudo /opt/sensor-spike/archive_results.sh
-cp /var/tmp/sensor-spike-results.tar.gz /mnt/c/Users/<WindowsUserName>/Downloads/
+cp /var/lib/sensor-spike/results.tar.gz /mnt/c/Users/<WindowsUserName>/Downloads/
 ```
 
 ### Manual Claude Code session
@@ -135,5 +135,5 @@ The stock WSL2 kernel may not expose BTF. Sources I found disagree on whether it
 | Tetragon service inactive | `journalctl -u tetragon -n 50`; check `sudo tetra probe config`; confirm `/sys/fs/bpf` is mounted (`findmnt /sys/fs/bpf`) |
 | Policy rejected | Policy schema differs by version; compare with https://tetragon.io/docs/reference/tracing-policy/ |
 | `auditd: UNAVAILABLE` | Kernel lacks audit support (common on stock WSL2) or the package failed to install; needs a custom kernel or another host |
-| `auditd: no rule loaded for agent_file` | The kernel rejected every file-open syscall rule; check `auditctl -c -R /var/tmp/sensor-spike-results/auditd-active.rules` for which |
+| `auditd: no rule loaded for agent_file` | The kernel rejected every file-open syscall rule; check `auditctl -c -R /var/lib/sensor-spike/results/auditd-active.rules` for which |
 | Capture counts are 0 but events exist | The grep patterns or the `ausearch --start` time format do not match this version; inspect `tetragon-capture-events.json` and `auditd-*.txt` |

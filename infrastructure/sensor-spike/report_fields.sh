@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RESULTS_DIRECTORY="/var/tmp/sensor-spike-results"
+RESULTS_DIRECTORY="/var/lib/sensor-spike/results"
 SAMPLES_DIRECTORY="$RESULTS_DIRECTORY/samples"
 FIELDS_REPORT_FILE="$RESULTS_DIRECTORY/fields-report.txt"
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RESULTS_DIRECTORY="/var/tmp/sensor-spike-results"
-RESULTS_ARCHIVE="/var/tmp/sensor-spike-results.tar.gz"
+RESULTS_DIRECTORY="/var/lib/sensor-spike/results"
+RESULTS_ARCHIVE="/var/lib/sensor-spike/results.tar.gz"
 
 tar -czf "$RESULTS_ARCHIVE" -C "$(dirname "$RESULTS_DIRECTORY")" "$(basename "$RESULTS_DIRECTORY")"
 chmod 644 "$RESULTS_ARCHIVE"

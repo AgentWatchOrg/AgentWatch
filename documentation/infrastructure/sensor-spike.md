@@ -37,7 +37,7 @@ The auditd rules cover `execve`, `execveat`, `open`, `openat`, `openat2`, `creat
 | `run_workload.sh` | `capture`: known exec, file-open, and connect actions with unique markers. `stress`: loop for timing. |
 | `compare_sensors.sh` | Runs the three phases; reports captured and missing markers, stress time, sensor CPU and memory. Reads only audit records created after the run starts. |
 | `report_fields.sh` | Lists the process identity, lineage, and activity fields present in each sample. |
-| `sanitize_samples.sh` | Redacts hostnames, usernames, non-loopback IPs, and API key patterns. |
+| `sanitize_samples.sh` | Redacts hostnames, usernames, non-loopback IPs, and API key patterns. Rewrites `exec_id` and `parent_exec_id`, which Tetragon builds as base64 of `<hostname>:<start time>:<pid>`, so they carry no hostname and still link child to parent. Fails if the hostname is still recoverable. |
 | `archive_results.sh` | Packs the results folder. |
 
 ## Options
@@ -52,7 +52,7 @@ The auditd rules cover `execve`, `execveat`, `open`, `openat`, `openat2`, `creat
 
 ## Results
 
-Written to `/var/tmp/sensor-spike-results/`.
+Written to `/var/lib/sensor-spike/results/`, a root-owned directory. The scripts run as root and read `availability.env` as data, accepting only `yes` or `no`; they never execute it.
 
 | File | Contents |
 |---|---|

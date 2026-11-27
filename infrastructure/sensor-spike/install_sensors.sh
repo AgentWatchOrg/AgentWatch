@@ -3,7 +3,8 @@ set -euo pipefail
 
 BUNDLE_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIRECTORY="/opt/sensor-spike"
-RESULTS_DIRECTORY="/var/tmp/sensor-spike-results"
+STATE_DIRECTORY="/var/lib/sensor-spike"
+RESULTS_DIRECTORY="$STATE_DIRECTORY/results"
 TRACING_POLICY_DIRECTORY="/etc/tetragon/tetragon.tp.d"
 AGENT_USER="agentuser"
 TETRAGON_VERSION="${TETRAGON_VERSION:-}"
@@ -48,7 +49,7 @@ detect_tetragon_architecture() {
 }
 
 record_host_info() {
-  mkdir -p "$RESULTS_DIRECTORY"
+  install -d -m 755 -o root -g root "$STATE_DIRECTORY" "$RESULTS_DIRECTORY"
   {
     echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "kernel: $(uname -r)"
@@ -162,7 +163,7 @@ require_root
 record_host_info
 require_systemd
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl jq
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl jq perl
 check_btf_support
 if [[ "$TETRAGON_AVAILABLE" == "yes" ]]; then
   if { resolve_tetragon_version && install_tetragon; }; then

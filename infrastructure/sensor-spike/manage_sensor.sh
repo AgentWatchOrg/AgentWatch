@@ -2,20 +2,24 @@
 set -euo pipefail
 
 INSTALL_DIRECTORY="/opt/sensor-spike"
-RESULTS_DIRECTORY="/var/tmp/sensor-spike-results"
+RESULTS_DIRECTORY="/var/lib/sensor-spike/results"
 AVAILABILITY_FILE="$RESULTS_DIRECTORY/availability.env"
 ACTIVE_RULES_FILE="$RESULTS_DIRECTORY/auditd-active.rules"
 SPIKE_AUDIT_KEYS=(agent_exec agent_file agent_net)
 AGENT_USER="agentuser"
 ACTION="${1:-}"
 SENSOR="${2:-all}"
-TETRAGON_AVAILABLE="no"
-AUDITD_AVAILABLE="no"
 
-if [[ -f "$AVAILABILITY_FILE" ]]; then
-  # shellcheck source=/dev/null
-  source "$AVAILABILITY_FILE"
-fi
+read_availability_flag() {
+  local flag_value=""
+  if [[ -f "$AVAILABILITY_FILE" ]]; then
+    flag_value="$(grep -m1 -E "^$1=(yes|no)$" "$AVAILABILITY_FILE" | cut -d= -f2 || true)"
+  fi
+  echo "${flag_value:-no}"
+}
+
+TETRAGON_AVAILABLE="$(read_availability_flag TETRAGON_AVAILABLE)"
+AUDITD_AVAILABLE="$(read_availability_flag AUDITD_AVAILABLE)"
 
 print_usage() {
   cat >&2 <<'USAGE'
